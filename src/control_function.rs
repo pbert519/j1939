@@ -108,26 +108,30 @@ impl ControlFunction {
             self.address_state,
             AddressState::AddressClaimed | AddressState::WaitForVeto(_)
         ) {
-            if name_raw < self.name.into() {
-                // we lose the address
-                if self.address_configurable {
-                    // auto configured address should be in range 128 to 247
-                    if self.address < 128 || self.address >= 247 {
-                        self.address = 128;
+            match name_raw.cmp(&self.name.into()) {
+                core::cmp::Ordering::Less => {
+                    // we lose the address
+                    if self.address_configurable {
+                        // auto configured address should be in range 128 to 247
+                        if self.address < 128 || self.address >= 247 {
+                            self.address = 128;
+                        } else {
+                            self.address += 1;
+                        };
+                        self.address_state = AddressState::WaitForVeto(Instant::now());
+                        self.send_addressclaim();
                     } else {
-                        self.address += 1;
-                    };
-                    self.address_state = AddressState::WaitForVeto(Instant::now());
-                    self.send_addressclaim();
-                } else {
-                    self.address_state = AddressState::CannotClaim;
-                    self.send_cannotclaim();
+                        self.address_state = AddressState::CannotClaim;
+                        self.send_cannotclaim();
+                    }
                 }
-            } else if name_raw == self.name.into() {
-                panic!("Same Name on Bus")
-            } else {
-                // we have higher priority
-                self.send_addressclaim();
+                core::cmp::Ordering::Greater => {
+                    // we have higher priority
+                    self.send_addressclaim();
+                }
+                core::cmp::Ordering::Equal => {
+                    panic!("Same Name on Bus")
+                }
             }
         }
     }

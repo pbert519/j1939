@@ -28,9 +28,7 @@ fn main() {
     Timer::init(Box::new(StdTimer::new()));
     let mut stack = j1939::stack::Stack::new();
 
-    let _cf = stack
-        .register_control_function(0x80, Name::default())
-        .unwrap();
+    let _cf = stack.register_control_function(0x80, Name::default());
 
     // three stage lib usage
     // stage 1: forward all frames into j1939 stack

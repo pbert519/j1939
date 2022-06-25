@@ -86,14 +86,14 @@ impl From<u32> for Header {
         }
     }
 }
-impl Into<u32> for Header {
-    fn into(self) -> u32 {
-        let mut id = self.source_address() as u32;
-        id |= (self.pgn().raw()) << 8;
-        if let Some(da) = self.destination_address() {
+impl From<Header> for u32 {
+    fn from(header: Header) -> u32 {
+        let mut id = header.source_address() as u32;
+        id |= (header.pgn().raw()) << 8;
+        if let Some(da) = header.destination_address() {
             id |= (da as u32) << 8;
         }
-        id |= (self.priority() as u32) << 26;
+        id |= (header.priority() as u32) << 26;
         id
     }
 }
@@ -149,11 +149,12 @@ impl TryFrom<Frame> for Request {
         }
     }
 }
-impl Into<Frame> for Request {
-    fn into(self) -> Frame {
-        let bytes: [u8; 4] = self.pgn().raw().to_le_bytes();
+
+impl From<Request> for Frame {
+    fn from(req: Request) -> Frame {
+        let bytes: [u8; 4] = req.pgn().raw().to_le_bytes();
         Frame {
-            header: self.header,
+            header: req.header,
             data: Vec::from(bytes),
         }
     }

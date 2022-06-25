@@ -86,25 +86,25 @@ impl From<[u8; 8]> for Name {
     }
 }
 
-impl Into<u64> for Name {
-    fn into(self) -> u64 {
+impl From<Name> for u64 {
+    fn from(name: Name) -> u64 {
         let mut res_value: u64 = 0;
-        res_value |= self.identity_number as u64 & 0x3FFFFF;
-        res_value |= (self.manufacturer_coder as u64 & 0x7FF) << 21;
-        res_value |= (self.ecu_instance as u64 & 0x7) << 32;
-        res_value |= (self.function_instance as u64 & 0x1F) << 35;
-        res_value |= (self.function as u64 & 0xFF) << 40;
-        res_value |= (self.vehicle_system as u64 & 0x7F) << 49;
-        res_value |= (self.vehicle_system_instance as u64 & 0x0F) << 56;
-        res_value |= (self.industry_group as u64 & 0x07) << 60;
-        res_value |= (self.address_capable as u64 & 0x01) << 63;
+        res_value |= name.identity_number as u64 & 0x3FFFFF;
+        res_value |= (name.manufacturer_coder as u64 & 0x7FF) << 21;
+        res_value |= (name.ecu_instance as u64 & 0x7) << 32;
+        res_value |= (name.function_instance as u64 & 0x1F) << 35;
+        res_value |= (name.function as u64 & 0xFF) << 40;
+        res_value |= (name.vehicle_system as u64 & 0x7F) << 49;
+        res_value |= (name.vehicle_system_instance as u64 & 0x0F) << 56;
+        res_value |= (name.industry_group as u64 & 0x07) << 60;
+        res_value |= (name.address_capable as u64 & 0x01) << 63;
         res_value
     }
 }
 
-impl Into<[u8; 8]> for Name {
-    fn into(self) -> [u8; 8] {
-        let raw: u64 = self.into();
+impl From<Name> for [u8; 8] {
+    fn from(name: Name) -> [u8; 8] {
+        let raw: u64 = name.into();
         raw.to_le_bytes()
     }
 }

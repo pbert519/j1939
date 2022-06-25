@@ -112,9 +112,9 @@ impl Stack {
         &mut self,
         preferred_address: u8,
         name: Name,
-    ) -> Result<ControlFunctionHandle, ()> {
+    ) -> ControlFunctionHandle {
         self.cf.push(ControlFunction::new(name, preferred_address));
-        Ok(ControlFunctionHandle(self.cf.len() - 1))
+        ControlFunctionHandle(self.cf.len() - 1)
     }
 
     pub fn control_function(&mut self, handle: &ControlFunctionHandle) -> &mut ControlFunction {
@@ -187,15 +187,13 @@ mod tests {
         fn response_to_addressclaim_request() {
             Timer::init(Box::new(TestTimer::new()));
             let mut stack = Stack::new();
-            let handle = stack
-                .register_control_function(
-                    0x85,
-                    Name {
-                        address_capable: false,
-                        ..Name::default()
-                    },
-                )
-                .unwrap();
+            let handle = stack.register_control_function(
+                0x85,
+                Name {
+                    address_capable: false,
+                    ..Name::default()
+                },
+            );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::Preferred
@@ -228,15 +226,13 @@ mod tests {
         fn control_function_address_claim_fixed() {
             Timer::init(Box::new(TestTimer::new()));
             let mut stack = Stack::new();
-            let handle = stack
-                .register_control_function(
-                    0x85,
-                    Name {
-                        address_capable: false,
-                        ..Name::default()
-                    },
-                )
-                .unwrap();
+            let handle = stack.register_control_function(
+                0x85,
+                Name {
+                    address_capable: false,
+                    ..Name::default()
+                },
+            );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::Preferred
@@ -261,15 +257,13 @@ mod tests {
         fn control_function_address_claim_fixed_failed() {
             Timer::init(Box::new(TestTimer::new()));
             let mut stack = Stack::new();
-            let handle = stack
-                .register_control_function(
-                    0x85,
-                    Name {
-                        address_capable: false,
-                        ..Name::default()
-                    },
-                )
-                .unwrap();
+            let handle = stack.register_control_function(
+                0x85,
+                Name {
+                    address_capable: false,
+                    ..Name::default()
+                },
+            );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::Preferred
@@ -299,9 +293,7 @@ mod tests {
         fn control_function_address_claim() {
             Timer::init(Box::new(TestTimer::new()));
             let mut stack = Stack::new();
-            let handle = stack
-                .register_control_function(0x85, Name::default())
-                .unwrap();
+            let handle = stack.register_control_function(0x85, Name::default());
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::Preferred
@@ -332,9 +324,7 @@ mod tests {
         fn control_function_address_claim_failed() {
             Timer::init(Box::new(TestTimer::new()));
             let mut stack = Stack::new();
-            let handle = stack
-                .register_control_function(0x85, Name::default())
-                .unwrap();
+            let handle = stack.register_control_function(0x85, Name::default());
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::Preferred
@@ -363,9 +353,7 @@ mod tests {
         fn control_function_address_claim_higher_priority() {
             Timer::init(Box::new(TestTimer::new()));
             let mut stack = Stack::new();
-            let handle = stack
-                .register_control_function(0x85, Name::default())
-                .unwrap();
+            let handle = stack.register_control_function(0x85, Name::default());
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::Preferred
