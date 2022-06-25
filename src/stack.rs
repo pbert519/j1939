@@ -11,37 +11,28 @@ use crossbeam_queue::ArrayQueue;
 /// The stack itself manages transport protocols
 /// get and setter for frames and source address based filtering is implemented.
 /// It is possible to register a ControlFunction, which handles AddressManagement and provides a pgn based filter utility
-pub struct Stack {
-    output_queue: ArrayQueue<Frame>,
+pub struct Stack<CanDriver: embedded_hal::can::nb::Can> {
     received_frames: ArrayQueue<Frame>,
     listen_sa: Vec<u8>,
     transport: TransportManager,
     cf: Vec<ControlFunction>,
     address_monitor: AddressMonitor,
+    can_driver: CanDriver,
 }
 
-impl Default for Stack {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Stack {
-    pub fn new() -> Self {
+impl<CanDriver: embedded_hal::can::nb::Can> Stack<CanDriver> {
+    pub fn new(can: CanDriver) -> Self {
         Self {
-            output_queue: ArrayQueue::new(20),
             received_frames: ArrayQueue::new(20),
             listen_sa: Vec::new(),
             transport: TransportManager::new(),
             cf: Vec::new(),
             address_monitor: AddressMonitor::new(),
+            can_driver: can,
         }
     }
 
-    pub fn push_can_frame<CanFrame: embedded_hal::can::Frame + core::fmt::Debug>(
-        &mut self,
-        frame: CanFrame,
-    ) {
+    fn push_can_frame<CanFrame: embedded_hal::can::Frame>(&mut self, frame: CanFrame) {
         if let embedded_hal::can::Id::Extended(eid) = frame.id() {
             let header: Header = eid.as_raw().into();
             // 1. check if the frame is addressed to me
@@ -59,7 +50,7 @@ impl Stack {
             {
                 let transport_frame =
                     self.transport
-                        .handle_frame(header, frame.data(), &mut self.output_queue);
+                        .handle_frame(header, frame.data(), &mut self.can_driver);
                 if let Some(frame) = transport_frame {
                     self.handle_new_frame(frame);
                 }
@@ -70,22 +61,12 @@ impl Stack {
         }
     }
 
-    pub fn get_can_frame<CanFrame: embedded_hal::can::Frame + core::fmt::Debug>(
-        &mut self,
-    ) -> Option<CanFrame> {
-        if let Some(frame) = self.output_queue.pop() {
-            let id: u32 = (*frame.header()).into();
-            CanFrame::new(
-                embedded_hal::can::ExtendedId::new(id).unwrap(),
-                frame.data(),
-            )
-        } else {
-            None
-        }
-    }
-
     /// run long running tasks like sending with transport protocol and address management
     pub fn process(&mut self) {
+        while let Ok(frame) = self.can_driver.receive() {
+            self.push_can_frame(frame);
+        }
+
         // check cf for ongoing work
         for cf_index in 0..self.cf.len() {
             // check cf address management for ongoing transactions
@@ -98,7 +79,7 @@ impl Stack {
             }
         }
         // handle ongoing transport protocol transactions
-        self.transport.process(&mut self.output_queue);
+        self.transport.process(&mut self.can_driver);
     }
 
     /// Provides a map with all ecus on the bus
@@ -128,9 +109,9 @@ impl Stack {
 
     pub fn send_frame(&mut self, frame: Frame) {
         if frame.data().len() > 8 {
-            self.transport.send_frame(frame, &mut self.output_queue)
+            self.transport.send_frame(frame, &mut self.can_driver)
         } else {
-            self.output_queue.force_push(frame);
+            self.can_driver.transmit(&frame.can()).expect("Can Transmit Error!");
         }
     }
 
@@ -174,6 +155,7 @@ pub struct ControlFunctionHandle(usize);
 mod tests {
     use super::*;
     use crate::frame::Frame;
+    use crate::test_utils::can_driver::TestDriver;
     use crate::test_utils::frame::TestFrame;
     use crate::test_utils::testtime::TestTimer;
     use crate::time::Timer;
@@ -186,7 +168,8 @@ mod tests {
         #[test]
         fn response_to_addressclaim_request() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             let handle = stack.register_control_function(
                 0x85,
                 Name {
@@ -200,7 +183,7 @@ mod tests {
             );
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 32]))
             );
             assert_eq!(
@@ -214,10 +197,10 @@ mod tests {
                 AddressState::AddressClaimed
             );
             // till here we just setup our stack with a valid address
-            stack.push_can_frame(TestFrame::new2(0x00EAFF80, &[0, 0xEE, 0]));
+            driver.push_can_frame(TestFrame::new2(0x00EAFF80, &[0, 0xEE, 0]));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 32]))
             )
         }
@@ -225,7 +208,8 @@ mod tests {
         #[test]
         fn control_function_address_claim_fixed() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             let handle = stack.register_control_function(
                 0x85,
                 Name {
@@ -239,7 +223,7 @@ mod tests {
             );
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 32]))
             );
             assert_eq!(
@@ -256,7 +240,8 @@ mod tests {
         #[test]
         fn control_function_address_claim_fixed_failed() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             let handle = stack.register_control_function(
                 0x85,
                 Name {
@@ -270,21 +255,21 @@ mod tests {
             );
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 32]))
             );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::WaitForVeto(Instant(0))
             );
-            stack.push_can_frame(TestFrame::new2(0x18EEFF84, &[0, 0, 0, 0, 0, 255, 2, 1]));
+            driver.push_can_frame(TestFrame::new2(0x18EEFF84, &[0, 0, 0, 0, 0, 255, 2, 1]));
             stack.process();
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::CannotClaim
             );
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFFFE, &[0, 0, 0, 0, 0, 255, 2, 32]))
             );
             // ToDo monitor bus if the name claims a different SA?
@@ -292,7 +277,8 @@ mod tests {
         #[test]
         fn control_function_address_claim() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             let handle = stack.register_control_function(0x85, Name::default());
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
@@ -300,7 +286,7 @@ mod tests {
             );
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 160]))
             );
             assert_eq!(
@@ -323,7 +309,8 @@ mod tests {
         #[test]
         fn control_function_address_claim_failed() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             let handle = stack.register_control_function(0x85, Name::default());
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
@@ -335,24 +322,25 @@ mod tests {
                 AddressState::WaitForVeto(Instant(0))
             );
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 160]))
             );
-            stack.push_can_frame(TestFrame::new2(0x18EEFF84, &[0, 0, 0, 0, 0, 255, 2, 100]));
+            driver.push_can_frame(TestFrame::new2(0x18EEFF84, &[0, 0, 0, 0, 0, 255, 2, 100]));
             stack.process();
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
                 AddressState::WaitForVeto(Instant(0))
             );
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFF86, &[0, 0, 0, 0, 0, 255, 2, 160]))
             );
         }
         #[test]
         fn control_function_address_claim_higher_priority() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             let handle = stack.register_control_function(0x85, Name::default());
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
@@ -363,10 +351,10 @@ mod tests {
                 *stack.control_function(&handle).address_state(),
                 AddressState::WaitForVeto(Instant(0))
             );
-            stack.push_can_frame(TestFrame::new2(0x18EEFF84, &[0, 0, 0, 0, 0, 255, 2, 180]));
+            driver.push_can_frame(TestFrame::new2(0x18EEFF84, &[0, 0, 0, 0, 0, 255, 2, 180]));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 160]))
             );
             std::thread::sleep(std::time::Duration::from_millis(300));
@@ -383,8 +371,9 @@ mod tests {
         #[test]
         fn broadcast_rx_short() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
-            stack.push_can_frame(TestFrame::new2(0x00FEB201, &[1, 2, 3, 4, 5, 6, 7, 8]));
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
+            driver.push_can_frame(TestFrame::new2(0x00FEB201, &[1, 2, 3, 4, 5, 6, 7, 8]));
             stack.process();
             assert_eq!(
                 stack.get_frame(),
@@ -398,14 +387,15 @@ mod tests {
         #[test]
         fn broadcast_rx_long() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
-            stack.push_can_frame(TestFrame::new2(
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
+            driver.push_can_frame(TestFrame::new2(
                 0x00ECFF01,
                 &[32, 20, 0, 3, 255, 0xB0, 0xFE, 0],
             ));
-            stack.push_can_frame(TestFrame::new2(0x00EBFF01, &[1, 1, 2, 3, 4, 5, 6, 7]));
-            stack.push_can_frame(TestFrame::new2(0x00EBFF01, &[2, 1, 2, 3, 4, 5, 6, 7]));
-            stack.push_can_frame(TestFrame::new2(0x00EBFF01, &[3, 1, 2, 3, 4, 5, 6, 255]));
+            driver.push_can_frame(TestFrame::new2(0x00EBFF01, &[1, 1, 2, 3, 4, 5, 6, 7]));
+            driver.push_can_frame(TestFrame::new2(0x00EBFF01, &[2, 1, 2, 3, 4, 5, 6, 7]));
+            driver.push_can_frame(TestFrame::new2(0x00EBFF01, &[3, 1, 2, 3, 4, 5, 6, 255]));
             stack.process();
             assert_eq!(
                 stack.get_frame(),
@@ -419,9 +409,10 @@ mod tests {
         #[test]
         fn p2p_rx_short() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             stack.listen_sa.push(0x20);
-            stack.push_can_frame(TestFrame::new2(0x00DC2080, &[1, 2, 3, 4, 5, 6, 7, 8]));
+            driver.push_can_frame(TestFrame::new2(0x00DC2080, &[1, 2, 3, 4, 5, 6, 7, 8]));
             stack.process();
             assert_eq!(
                 stack.get_frame(),
@@ -434,55 +425,58 @@ mod tests {
         #[test]
         fn p2p_rx_short_without_address() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
-            stack.push_can_frame(TestFrame::new2(0x00DC2001, &[1, 2, 3, 4, 5, 6, 7, 8]));
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
+            driver.push_can_frame(TestFrame::new2(0x00DC2001, &[1, 2, 3, 4, 5, 6, 7, 8]));
             stack.process();
             assert_eq!(stack.get_frame(), None);
         }
         #[test]
         fn p2p_rx_short_wrong_address() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
-            stack.push_can_frame(TestFrame::new2(0x00DC2001, &[1, 2, 3, 4, 5, 6, 7, 8]));
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
+            driver.push_can_frame(TestFrame::new2(0x00DC2001, &[1, 2, 3, 4, 5, 6, 7, 8]));
             stack.process();
             assert_eq!(stack.get_frame(), None);
         }
         #[test]
         fn p2p_rx_long() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             stack.listen_sa.push(0x02);
-            stack.push_can_frame(TestFrame::new2(0x00EC0201, &[16, 20, 0, 3, 1, 176, 254, 0]));
+            driver.push_can_frame(TestFrame::new2(0x00EC0201, &[16, 20, 0, 3, 1, 176, 254, 0]));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(
                     0x1CEC0102,
                     &[17, 1, 1, 255, 255, 176, 254, 0]
                 ))
             );
-            stack.push_can_frame(TestFrame::new2(0x00EB0201, &[1, 1, 2, 3, 4, 5, 6, 7]));
+            driver.push_can_frame(TestFrame::new2(0x00EB0201, &[1, 1, 2, 3, 4, 5, 6, 7]));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(
                     0x1CEC0102,
                     &[17, 1, 2, 255, 255, 176, 254, 0]
                 ))
             );
-            stack.push_can_frame(TestFrame::new2(0x00EB0201, &[2, 1, 2, 3, 4, 5, 6, 7]));
+            driver.push_can_frame(TestFrame::new2(0x00EB0201, &[2, 1, 2, 3, 4, 5, 6, 7]));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(
                     0x1CEC0102,
                     &[17, 1, 3, 255, 255, 176, 254, 0]
                 ))
             );
-            stack.push_can_frame(TestFrame::new2(0x00EB0201, &[3, 1, 2, 3, 4, 5, 55, 255]));
+            driver.push_can_frame(TestFrame::new2(0x00EB0201, &[3, 1, 2, 3, 4, 5, 55, 255]));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(
                     0x1CEC0102,
                     &[19, 20, 0, 3, 255, 176, 254, 0]
@@ -496,60 +490,63 @@ mod tests {
                 ))
             );
             stack.process();
-            assert_eq!(stack.get_can_frame::<TestFrame>(), None);
+            assert_eq!(driver.get_can_frame(), None);
             assert_eq!(stack.get_frame(), None);
         }
         #[test]
         fn p2p_rx_long_abort_already_connected() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             stack.listen_sa.push(0x02);
-            stack.push_can_frame(TestFrame::new2(0x00EC0201, &[16, 20, 0, 3, 1, 176, 254, 0]));
+            driver.push_can_frame(TestFrame::new2(0x00EC0201, &[16, 20, 0, 3, 1, 176, 254, 0]));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(
                     0x1CEC0102,
                     &[17, 1, 1, 255, 255, 176, 254, 0]
                 ))
             );
-            stack.push_can_frame(TestFrame::new2(0x00EC0201, &[16, 20, 0, 3, 1, 176, 254, 0]));
+            driver.push_can_frame(TestFrame::new2(0x00EC0201, &[16, 20, 0, 3, 1, 176, 254, 0]));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(
                     0x1CEC0102,
                     &[255, 1, 255, 255, 255, 176, 254, 0]
                 ))
             );
             stack.process();
-            assert_eq!(stack.get_can_frame::<TestFrame>(), None)
+            assert_eq!(driver.get_can_frame(), None)
         }
         #[test]
         fn broadcast_tx_short() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             stack.send_frame(Frame::new(
                 Header::new(PGN::new(0xFEB2), 0, 0x21, None),
                 &[1, 2, 3, 4, 5, 6, 7, 8],
             ));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x00FEB221, &[1, 2, 3, 4, 5, 6, 7, 8]))
             )
         }
         #[test]
         fn broadcast_tx_long() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             stack.send_frame(Frame::new(
                 Header::new(PGN::new(0xFEB0), 0, 0x21, None),
                 &[1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6],
             ));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(
                     0x1CECFF21,
                     &[32, 20, 0, 3, 255, 0xB0, 0xFE, 0]
@@ -557,40 +554,42 @@ mod tests {
             );
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x1CEBFF21, &[1, 1, 2, 3, 4, 5, 6, 7]))
             );
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x1CEBFF21, &[2, 1, 2, 3, 4, 5, 6, 7]))
             );
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x1CEBFF21, &[3, 1, 2, 3, 4, 5, 6, 255]))
             );
             stack.process();
-            assert_eq!(stack.get_can_frame::<TestFrame>(), None)
+            assert_eq!(driver.get_can_frame(), None)
         }
         #[test]
         fn p2p_tx_short() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             stack.send_frame(Frame::new(
                 Header::new(PGN::new(0xF000), 6, 0x21, Some(0x9B)),
                 &[1, 2, 3, 4, 5, 6, 7, 8],
             ));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x18F09B21, &[1, 2, 3, 4, 5, 6, 7, 8]))
             )
         }
         #[test]
         fn p2p_tx_long() {
             Timer::init(Box::new(TestTimer::new()));
-            let mut stack = Stack::new();
+            let mut driver = TestDriver::new();
+            let mut stack = Stack::new(driver.clone());
             stack.listen_sa.push(0x90);
             stack.send_frame(Frame::new(
                 Header::new(PGN::new(0xDF00), 0, 0x90, Some(0x9B)),
@@ -598,55 +597,55 @@ mod tests {
             ));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x1CEC9B90, &[16, 20, 0, 3, 1, 0, 223, 0]))
             );
             // without cts no further messages
             stack.process();
-            assert_eq!(stack.get_can_frame::<TestFrame>(), None);
-            stack.push_can_frame(TestFrame::new2(
+            assert_eq!(driver.get_can_frame(), None);
+            driver.push_can_frame(TestFrame::new2(
                 0x1CEC909B,
                 &[17, 1, 1, 255, 255, 0, 223, 0],
             ));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x1CEB9B90, &[1, 1, 2, 3, 4, 5, 6, 7]))
             );
             // without cts no further messages
             stack.process();
-            assert_eq!(stack.get_can_frame::<TestFrame>(), None);
-            stack.push_can_frame(TestFrame::new2(
+            assert_eq!(driver.get_can_frame(), None);
+            driver.push_can_frame(TestFrame::new2(
                 0x1CEC909B,
                 &[17, 1, 2, 255, 255, 0, 223, 0],
             ));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x1CEB9B90, &[2, 1, 2, 3, 4, 5, 6, 7]))
             );
             // repeat a packet
-            stack.push_can_frame(TestFrame::new2(
+            driver.push_can_frame(TestFrame::new2(
                 0x1CEC909B,
                 &[17, 1, 2, 255, 255, 0, 223, 0],
             ));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x1CEB9B90, &[2, 1, 2, 3, 4, 5, 6, 7]))
             );
-            stack.push_can_frame(TestFrame::new2(
+            driver.push_can_frame(TestFrame::new2(
                 0x1CEC909B,
                 &[17, 1, 3, 255, 255, 0, 223, 0],
             ));
             stack.process();
             assert_eq!(
-                stack.get_can_frame(),
+                driver.get_can_frame(),
                 Some(TestFrame::new2(0x1CEB9B90, &[3, 1, 2, 3, 4, 5, 6, 255]))
             );
-            stack.push_can_frame(TestFrame::new2(0x1CEC909B, &[19, 20, 0, 3, 255, 0, 223, 0]));
+            driver.push_can_frame(TestFrame::new2(0x1CEC909B, &[19, 20, 0, 3, 255, 0, 223, 0]));
             stack.process();
-            assert_eq!(stack.get_can_frame::<TestFrame>(), None);
+            assert_eq!(driver.get_can_frame(), None);
         }
     }
 }

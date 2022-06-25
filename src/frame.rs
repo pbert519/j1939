@@ -119,6 +119,14 @@ impl Frame {
     pub fn data(&self) -> &[u8] {
         &self.data
     }
+
+    pub fn can<CanFrame: embedded_hal::can::Frame>(self) -> CanFrame {
+        let id: u32 = (*self.header()).into();
+        CanFrame::new(
+            embedded_hal::can::ExtendedId::new(id).unwrap(),
+            self.data(),
+        ).unwrap()
+    }
 }
 
 pub struct Request {

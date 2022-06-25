@@ -1,8 +1,74 @@
+pub mod can_driver {
+    use std::sync::Mutex;
+
+    use super::frame::TestFrame;
+    use alloc::{collections::VecDeque, sync::Arc};
+
+    #[derive(Debug)]
+    pub struct TestDriverError {}
+
+    impl embedded_hal::can::Error for TestDriverError {
+        fn kind(&self) -> embedded_hal::can::ErrorKind {
+            embedded_hal::can::ErrorKind::Other
+        }
+    }
+
+    pub struct TestDriver {
+        output: Arc<Mutex<VecDeque<TestFrame>>>,
+        input: Arc<Mutex<VecDeque<TestFrame>>>,
+    }
+    impl Clone for TestDriver {
+        fn clone(&self) -> Self {
+            Self {
+                output: self.output.clone(),
+                input: self.input.clone(),
+            }
+        }
+    }
+
+    impl TestDriver {
+        pub fn new() -> Self {
+            Self {
+                output: Arc::new(Mutex::new(VecDeque::new())),
+                input: Arc::new(Mutex::new(VecDeque::new())),
+            }
+        }
+        pub fn push_can_frame(&mut self, frame: TestFrame) {
+            self.input.lock().unwrap().push_back(frame);
+        }
+        pub fn get_can_frame(&mut self) -> Option<TestFrame> {
+            self.output.lock().unwrap().pop_front()
+        }
+    }
+
+    impl embedded_hal::can::nb::Can for TestDriver {
+        type Frame = crate::test_utils::frame::TestFrame;
+
+        type Error = TestDriverError;
+
+        fn transmit(
+            &mut self,
+            frame: &Self::Frame,
+        ) -> embedded_hal::nb::Result<Option<Self::Frame>, Self::Error> {
+            self.output.lock().unwrap().push_back(frame.clone());
+            Ok(None)
+        }
+
+        fn receive(&mut self) -> embedded_hal::nb::Result<Self::Frame, Self::Error> {
+            if let Some(frame) = self.input.lock().unwrap().pop_front() {
+                Ok(frame)
+            } else {
+                Err(embedded_hal::nb::Error::WouldBlock)
+            }
+        }
+    }
+}
+
 pub mod frame {
     use alloc::vec::Vec;
     use embedded_hal::can::Frame;
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone)]
     pub struct TestFrame {
         id: embedded_hal::can::Id,
         data: Vec<u8>,

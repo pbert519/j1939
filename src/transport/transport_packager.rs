@@ -2,7 +2,6 @@ use crate::frame::{Frame, Header, PGN};
 use crate::transport::tp_frames::*;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-use crossbeam_queue::ArrayQueue;
 
 struct BroadcastReceier {
     pub data: Vec<u8>,
@@ -48,7 +47,7 @@ impl TransportPackager {
         }
     }
 
-    pub fn process_tpcm(&mut self, tpcm: TPCM, can_tx_queue: &mut ArrayQueue<Frame>) {
+    pub fn process_tpcm<CanDriver: embedded_hal::can::nb::Can>(&mut self, tpcm: TPCM,  can_driver: &mut CanDriver) {
         match tpcm {
             TPCM::Rts {
                 message_size,
@@ -78,7 +77,7 @@ impl TransportPackager {
                         remote_address,
                         local_address,
                     };
-                    can_tx_queue.force_push(cts.into());
+                    can_driver.transmit(&Frame::from(cts).can()).expect("Can Transmit Error!");
                 } else {
                     let abort = TPCM::Abort {
                         abort_reason: AbortReason::AlreadyConnected,
@@ -86,7 +85,7 @@ impl TransportPackager {
                         remote_address,
                         local_address,
                     };
-                    can_tx_queue.force_push(abort.into());
+                    can_driver.transmit(&Frame::from(abort).can()).expect("Can Transmit Error!");
                 }
             }
             TPCM::Cts {
@@ -149,11 +148,11 @@ impl TransportPackager {
         }
     }
 
-    pub fn process_tpdt(
+    pub fn process_tpdt<CanDriver: embedded_hal::can::nb::Can>(
         &mut self,
         tpdt: TPDT,
-        can_tx_queue: &mut ArrayQueue<Frame>,
-    ) -> Option<Frame> {
+        can_driver: &mut CanDriver
+        ) -> Option<Frame> {
         let mut result = None;
         if tpdt.local_address == 0xFF {
             if let Some(rec) = &mut self.in_broadcast.get_mut(&tpdt.remote_address) {
@@ -213,7 +212,7 @@ impl TransportPackager {
                         remote_address: tpdt.remote_address,
                         local_address: tpdt.local_address,
                     };
-                    can_tx_queue.force_push(ack.into());
+                    can_driver.transmit(&Frame::from(ack).can()).expect("Can Transmit Error!");
                 } else {
                     rec.data.extend_from_slice(&tpdt.data);
                     if rec.last_requested_index + rec.max_packets_per_cts == rec.last_packet_index {
@@ -225,7 +224,7 @@ impl TransportPackager {
                             local_address: tpdt.local_address,
                         };
                         rec.last_requested_index += rec.max_packets_per_cts;
-                        can_tx_queue.force_push(cts.into());
+                        can_driver.transmit(&Frame::from(cts).can()).expect("Can Transmit Error!");
                     }
                 }
             } else {
@@ -236,7 +235,7 @@ impl TransportPackager {
                     remote_address: tpdt.remote_address,
                     local_address: tpdt.local_address,
                 };
-                can_tx_queue.force_push(abort.into());
+                can_driver.transmit(&Frame::from(abort).can()).expect("Can Transmit Error!");
                 self.in_broadcast.remove(&tpdt.remote_address);
             }
         } else {
@@ -247,12 +246,12 @@ impl TransportPackager {
                 remote_address: tpdt.remote_address,
                 local_address: tpdt.local_address,
             };
-            can_tx_queue.force_push(abort.into());
+            can_driver.transmit(&Frame::from(abort).can()).expect("Can Transmit Error!");
         }
         result
     }
 
-    pub fn new_out_transfer(&mut self, pdu: Frame, can_tx_queue: &mut ArrayQueue<Frame>) {
+    pub fn new_out_transfer<CanDriver: embedded_hal::can::nb::Can>(&mut self, pdu: Frame, can_driver: &mut CanDriver) {
         let bytes_to_send = pdu.data().len() as u16;
         let packets_to_send = ((pdu.data().len() + 7/* ceil division */) / 8) as u8;
 
@@ -265,7 +264,7 @@ impl TransportPackager {
                 remote_address: 0xFF,
                 local_address: pdu.header().source_address(),
             };
-            can_tx_queue.force_push(bam.into());
+            can_driver.transmit(&Frame::from(bam).can()).expect("Can Transmit Error!");
             self.out_broadcast = Some(BroadcastSender {
                 pdu,
                 last_packet_index: 0,
@@ -280,7 +279,7 @@ impl TransportPackager {
                 remote_address: pdu.header().destination_address().unwrap(),
                 local_address: pdu.header().source_address(),
             };
-            can_tx_queue.force_push(rts.into());
+            can_driver.transmit(&Frame::from(rts).can()).expect("Can Transmit Error!");
             self.out_p2p.insert(
                 (
                     pdu.header().source_address(),
@@ -295,7 +294,7 @@ impl TransportPackager {
         }
     }
 
-    pub fn process_out_transfers(&mut self, can_tx_queue: &mut ArrayQueue<Frame>) {
+    pub fn process_out_transfers<CanDriver: embedded_hal::can::nb::Can>(&mut self, can_driver: &mut CanDriver) {
         // process broadcasts
         if let Some(sender) = &mut self.out_broadcast {
             let mut data = [0xFF; 7];
@@ -309,7 +308,7 @@ impl TransportPackager {
                 data,
             };
             sender.last_packet_index += 1;
-            can_tx_queue.force_push(tpdt.into());
+            can_driver.transmit(&Frame::from(tpdt).can()).expect("Can Transmit Error!");
             if sender.last_packet_index >= sender.packet_count {
                 self.out_broadcast = None;
             }
@@ -330,7 +329,7 @@ impl TransportPackager {
                     data,
                 };
                 sender.last_packet_index += 1;
-                can_tx_queue.force_push(tpdt.into());
+                can_driver.transmit(&Frame::from(tpdt).can()).expect("Can Transmit Error!");
             }
         }
     }
