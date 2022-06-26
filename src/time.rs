@@ -1,17 +1,16 @@
 /// Provides a point of time since start of the application
 #[derive(Debug, PartialEq, Clone, Copy)]
+
+/// Instants describes a point in time
+/// The inner type is a strictly monotonic timestamp in milliseconds
 pub struct Instant(pub u64);
 
-pub struct Duration(pub u64);
+pub(crate) struct Duration(u64);
 
 impl Duration {
     /// Create duration from milliseconds
     pub fn new(ms: u64) -> Self {
         Self(ms)
-    }
-    /// Get Duration as milliseconds
-    pub fn ms(&self) -> u64 {
-        self.0
     }
     /// Check if the given timeout is over
     pub fn timeout(&self, start: Instant, now: Instant) -> bool {
@@ -21,8 +20,9 @@ impl Duration {
 
 // ----------------------------
 
+/// Provides the interal time base for the J1939 Stack
 pub trait TimerDriver {
-    /// Get current time
+    /// Get current timestamp as Instant
     fn now(&self) -> Instant;
 }
 

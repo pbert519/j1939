@@ -11,6 +11,7 @@ use crossbeam_queue::ArrayQueue;
 /// The stack itself manages transport protocols
 /// get and setter for frames and source address based filtering is implemented.
 /// It is possible to register a ControlFunction, which handles AddressManagement and provides a pgn based filter utility
+/// The stacks process() functions must be called on a regulary basis to perform internal long running tasks
 pub struct Stack<CanDriver: embedded_hal::can::nb::Can, TimeDriver: crate::time::TimerDriver> {
     received_frames: ArrayQueue<Frame>,
     listen_sa: Vec<u8>,
@@ -24,6 +25,8 @@ pub struct Stack<CanDriver: embedded_hal::can::nb::Can, TimeDriver: crate::time:
 impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::TimerDriver>
     Stack<CanDriver, TimeDriver>
 {
+    /// Creates a new Stack object, capturing the can and timer driver
+    /// The standard configuration receives all broadcast frames
     pub fn new(can: CanDriver, time: TimeDriver) -> Self {
         Self {
             received_frames: ArrayQueue::new(20),
@@ -33,41 +36,6 @@ impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::Tim
             address_monitor: AddressMonitor::new(),
             can_driver: can,
             time,
-        }
-    }
-
-    fn push_can_frame<CanFrame: embedded_hal::can::Frame>(&mut self, frame: CanFrame) {
-        if let embedded_hal::can::Id::Extended(eid) = frame.id() {
-            let header: Header = eid.as_raw().into();
-            // 1. check if the frame is addressed to me
-            // broadcast or da == 0xFF or address of a registered control function
-            if !self.check_destination(header.destination_address()) {
-                return;
-            }
-            // 2. is it a transport protocol message?
-            // yes -> handle transport protocol
-            // no -> forward to control function (this includes address management) and move it into our buffer
-            if header.pgn() == PGN_TP_CM
-                || header.pgn() == PGN_TP_DT
-                || header.pgn() == PGN_ETP_CM
-                || header.pgn() == PGN_ETP_DT
-            {
-                let transport_frame =
-                    self.transport
-                        .handle_frame(header, frame.data(), &mut self.can_driver);
-                if let Some(frame) = transport_frame {
-                    for cf in &mut self.cf {
-                        cf.handle_new_frame(&frame);
-                    }
-                    self.handle_new_frame(frame);
-                }
-            } else {
-                let frame = Frame::new(header, frame.data());
-                for cf in &mut self.cf {
-                    cf.handle_new_frame(&frame);
-                }
-                self.handle_new_frame(frame);
-            }
         }
     }
 
@@ -106,6 +74,8 @@ impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::Tim
     }
 
     // ---------------------- control functions ----------------------------------------------------
+    /// Creates a new [ControlFunction] with a preferred address and Name
+    /// The functions returns a [ControlFunctionHandle] which can be used to access the created ControlFunction
     pub fn register_control_function(
         &mut self,
         preferred_address: u8,
@@ -118,7 +88,8 @@ impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::Tim
         ));
         ControlFunctionHandle(self.cf.len() - 1)
     }
-
+    /// Returns a mutable reference of a [ControlFunction].
+    /// ControlsFunctions are identified by a [ControlFunctionHandle]
     pub fn control_function(
         &mut self,
         handle: &ControlFunctionHandle,
@@ -127,10 +98,14 @@ impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::Tim
     }
 
     // --------------------------- direct stack usage ----------------------------------------------
+    /// Returns a received J1939 Frame
+    /// Frames longer than 8 Bytes are already assembled
+    /// By default only broadcast messages are received, to receive additonal message the source address must be set using [set_accepted_sa]
     pub fn get_frame(&mut self) -> Option<Frame> {
         self.received_frames.pop()
     }
-
+    /// Send a J1939 Frame
+    /// Frames longer than 8 bytes are send by a transport protocol
     pub fn send_frame(&mut self, frame: Frame) {
         if frame.data().len() > 8 {
             self.transport.send_frame(frame, &mut self.can_driver)
@@ -140,12 +115,48 @@ impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::Tim
                 .expect("Can Transmit Error!");
         }
     }
-
+    /// Set list of accepted Source Addresses from which messages should be received
+    /// This has no effect on Control Functions, but only the usage of [get_frame]
     pub fn set_accepted_sa(&mut self, sa_list: Vec<u8>) {
         self.listen_sa = sa_list;
     }
 
     // ------------------------private--------------------------------------------------------------
+    fn push_can_frame<CanFrame: embedded_hal::can::Frame>(&mut self, frame: CanFrame) {
+        if let embedded_hal::can::Id::Extended(eid) = frame.id() {
+            let header: Header = eid.as_raw().into();
+            // 1. check if the frame is addressed to me
+            // broadcast or da == 0xFF or address of a registered control function
+            if !self.check_destination(header.destination_address()) {
+                return;
+            }
+            // 2. is it a transport protocol message?
+            // yes -> handle transport protocol
+            // no -> forward to control function (this includes address management) and move it into our buffer
+            if header.pgn() == PGN_TP_CM
+                || header.pgn() == PGN_TP_DT
+                || header.pgn() == PGN_ETP_CM
+                || header.pgn() == PGN_ETP_DT
+            {
+                let transport_frame =
+                    self.transport
+                        .handle_frame(header, frame.data(), &mut self.can_driver);
+                if let Some(frame) = transport_frame {
+                    for cf in &mut self.cf {
+                        cf.handle_new_frame(&frame);
+                    }
+                    self.handle_new_frame(frame);
+                }
+            } else {
+                let frame = Frame::new(header, frame.data());
+                for cf in &mut self.cf {
+                    cf.handle_new_frame(&frame);
+                }
+                self.handle_new_frame(frame);
+            }
+        }
+    }
+
     fn handle_new_frame(&mut self, frame: Frame) {
         if frame.header().pgn() == PGN_ADDRESSCLAIM || frame.header().pgn() == PGN_REQUEST {
             self.address_monitor.handle_frame(&frame);

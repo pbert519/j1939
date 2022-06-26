@@ -49,7 +49,8 @@ pub struct Name {
 }
 
 impl Name {
-    pub fn default() -> Self {
+    #[cfg(test)]
+    pub(crate) fn default() -> Self {
         Name {
             address_capable: true,
             industry_group: IndustryGroup::AgriculturalAndForestry.into(),
@@ -109,6 +110,7 @@ impl From<Name> for [u8; 8] {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum IndustryGroup {
@@ -120,6 +122,7 @@ pub enum IndustryGroup {
     Industrial = 5,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum VehicleSystem4Marine {
@@ -143,6 +146,7 @@ pub enum VehicleSystem4Marine {
     Entertainment = 125,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum VehicleSystem3Construction {
@@ -158,6 +162,7 @@ pub enum VehicleSystem3Construction {
     Grader = 8,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum VehicleSystem2Agriculture {
@@ -189,6 +194,7 @@ pub enum VehicleSystem2Agriculture {
     SlurryApplicators = 25,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum VehicleSystem1OnHighway {
@@ -198,6 +204,7 @@ pub enum VehicleSystem1OnHighway {
     Trailer = 2,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum Functions {
@@ -291,6 +298,7 @@ pub enum Functions {
     NotAvailable255 = 255,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum ManufacturerCodes {

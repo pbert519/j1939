@@ -4,7 +4,6 @@
 ## General
 - Logging support
 - Better error handling
-- Document public API
 - Timings and Timeouts may be not standard conform or missing
 
 ## Examples

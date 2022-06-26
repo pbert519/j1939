@@ -1,4 +1,4 @@
-use j1939::{self, name::Name, time::Instant};
+use j1939::{self, name::*, time::Instant};
 
 #[derive(Clone)]
 pub struct StdTimer(std::time::Instant);
@@ -22,7 +22,19 @@ fn main() {
     socket.set_nonblocking(true).unwrap();
     let mut stack = j1939::stack::Stack::new(socket, StdTimer::new());
 
-    let _cf = stack.register_control_function(0x80, Name::default());
+    let name = Name {
+        address_capable: true,
+        industry_group: IndustryGroup::OnHighway.into(),
+        vehicle_system_instance: 0,
+        vehicle_system: VehicleSystem1OnHighway::Trailer.into(),
+        function: Functions::AxleDrive8.into(),
+        function_instance: 2,
+        ecu_instance: 0,
+        manufacturer_coder: 0,
+        identity_number: 0x12345,
+    };
+
+    let _cf = stack.register_control_function(0x80, name);
 
     loop {
         stack.process();

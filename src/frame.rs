@@ -1,30 +1,41 @@
 use alloc::vec::Vec;
-/// PGN wraps the pgn of a j1939 frame
-/// pgn contains a unique id, describing the content of a j1939 frame
+
+/// PGN contains a unique id, describing the content of a J1939 frame
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct PGN(pub u32);
 
 impl PGN {
+    /// Creates a new PGN from a u32 number
+    /// Attention: Currently no checks are in place if this PGN is valid
     pub fn new(pgn: u32) -> Self {
         Self(pgn)
     }
-
+    /// Get a PGN as u32
     pub fn raw(&self) -> u32 {
         self.0
     }
-
+    /// Checks if the pgn is a broadcast pgn as definied by the j1939 standard
     pub fn is_broadcast(&self) -> bool {
         ((self.0 >> 8) & 0xFF) > 240
     }
 }
-
+/// Transport Protocol Control Flow PGN
 pub const PGN_TP_CM: PGN = PGN(0xEC00);
+/// Transport Protocol Data Transport PGN
 pub const PGN_TP_DT: PGN = PGN(0xEB00);
+/// Extended Transport Protocol Control Flow PGN
+/// Specific to ISO11783
 pub const PGN_ETP_CM: PGN = PGN(0xC800);
+/// Extended Transport Protocol Data Transport PGN
+/// Specific to ISO11783
 pub const PGN_ETP_DT: PGN = PGN(0xC700);
+/// Address claim PGN
 pub const PGN_ADDRESSCLAIM: PGN = PGN(0xEE00);
+/// Address Command PGN
 pub const PGN_ADDRESSCOMMAND: PGN = PGN(0xFED8);
+/// PGN Request PGN
 pub const PGN_REQUEST: PGN = PGN(0xEA00);
+/// ACK PGN
 pub const PGN_ACK: PGN = PGN(0xE800);
 
 /// Header of a decoded J1939 Frame
@@ -37,6 +48,8 @@ pub struct Header {
 }
 
 impl Header {
+    /// Creates a new header
+    /// destination address must only be None if the PGN is a broadcast pgn
     pub fn new(
         pgn: PGN,
         priority: u8,
@@ -50,16 +63,19 @@ impl Header {
             destination_address,
         }
     }
-
+    /// Returs the PGN
     pub fn pgn(&self) -> PGN {
         self.pgn
     }
+    /// Returns the priority
     pub fn priority(&self) -> u8 {
         self.priority
     }
+    /// Returns the source address
     pub fn source_address(&self) -> u8 {
         self.source_address
     }
+    /// Returns the destinaation address
     pub fn destination_address(&self) -> Option<u8> {
         self.destination_address
     }
@@ -107,31 +123,40 @@ pub struct Frame {
 }
 
 impl Frame {
+    /// Creates a new Frame with given Header and data
+    /// The data is copied
     pub fn new(header: Header, data: &[u8]) -> Self {
         Frame {
             header,
             data: data.to_vec(),
         }
     }
+    /// Returns frame header
     pub fn header(&self) -> &Header {
         &self.header
     }
+    /// Returns a view of the frame data
     pub fn data(&self) -> &[u8] {
         &self.data
     }
 
-    pub fn can<CanFrame: embedded_hal::can::Frame>(self) -> CanFrame {
+    pub(crate) fn can<CanFrame: embedded_hal::can::Frame>(self) -> CanFrame {
         let id: u32 = (*self.header()).into();
         CanFrame::new(embedded_hal::can::ExtendedId::new(id).unwrap(), self.data()).unwrap()
     }
 }
 
+/// A J1939 Frame specalized to request a specific PGN to be send on the bus
 pub struct Request {
     header: Header,
     pgn: PGN,
 }
 
 impl Request {
+    /// Creates a new Request Frame
+    /// pgn is the requested PGN
+    /// destination address can either a control function which provides the pgn or 0xFF address all ECUs
+    /// source address should be the valid local address of a control function
     pub fn new(pgn: PGN, source_address: u8, destination_address: u8) -> Self {
         let header = Header {
             pgn: PGN_REQUEST,
@@ -141,9 +166,11 @@ impl Request {
         };
         Self { header, pgn }
     }
+    /// Returns the [Header]
     pub fn header(&self) -> &Header {
         &self.header
     }
+    /// Returns the requested PGN by this Request Frame
     pub fn pgn(&self) -> &PGN {
         &self.pgn
     }
