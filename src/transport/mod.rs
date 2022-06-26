@@ -43,12 +43,15 @@ impl TransportManager {
         self.transport_packager.process_out_transfers(can_driver);
     }
 
-    pub fn send_frame<CanDriver: embedded_hal::can::nb::Can>(&mut self, frame: Frame, can_driver: &mut CanDriver) {
+    pub fn send_frame<CanDriver: embedded_hal::can::nb::Can>(
+        &mut self,
+        frame: Frame,
+        can_driver: &mut CanDriver,
+    ) {
         if frame.data().len() > 1785 {
             todo!("ETP not yet supported");
         } else {
-            self.transport_packager
-                .new_out_transfer(frame, can_driver)
+            self.transport_packager.new_out_transfer(frame, can_driver)
         }
     }
 }

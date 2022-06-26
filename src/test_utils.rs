@@ -122,18 +122,33 @@ pub mod frame {
 }
 
 pub mod testtime {
-    pub struct TestTimer(std::time::Instant);
+    use std::sync::Mutex;
+
+    use alloc::sync::Arc;
+
+    use crate::time::Instant;
+
+    #[derive(Clone)]
+    pub struct TestTimer {
+        time: Arc<Mutex<u64>>,
+    }
 
     impl TestTimer {
         pub fn new() -> Self {
-            Self(std::time::Instant::now())
+            Self {
+                time: Arc::new(Mutex::new(0)),
+            }
+        }
+        pub fn set_time(&mut self, time: u64) {
+            if let Ok(mut t) = self.time.lock() {
+                *t = time;
+            }
         }
     }
 
     impl crate::time::TimerDriver for TestTimer {
-        fn now(&self) -> u64 {
-            let duration = self.0.elapsed();
-            duration.as_millis() as u64
+        fn now(&self) -> Instant {
+            Instant(*self.time.lock().unwrap())
         }
     }
 }

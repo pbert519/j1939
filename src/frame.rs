@@ -122,10 +122,7 @@ impl Frame {
 
     pub fn can<CanFrame: embedded_hal::can::Frame>(self) -> CanFrame {
         let id: u32 = (*self.header()).into();
-        CanFrame::new(
-            embedded_hal::can::ExtendedId::new(id).unwrap(),
-            self.data(),
-        ).unwrap()
+        CanFrame::new(embedded_hal::can::ExtendedId::new(id).unwrap(), self.data()).unwrap()
     }
 }
 
@@ -135,6 +132,15 @@ pub struct Request {
 }
 
 impl Request {
+    pub fn new(pgn: PGN, source_address: u8, destination_address: u8) -> Self {
+        let header = Header {
+            pgn: PGN_REQUEST,
+            priority: 3,
+            source_address,
+            destination_address: Some(destination_address),
+        };
+        Self { header, pgn }
+    }
     pub fn header(&self) -> &Header {
         &self.header
     }
@@ -163,7 +169,7 @@ impl From<Request> for Frame {
         let bytes: [u8; 4] = req.pgn().raw().to_le_bytes();
         Frame {
             header: req.header,
-            data: Vec::from(bytes),
+            data: Vec::from(&bytes[0..3]),
         }
     }
 }
