@@ -100,7 +100,7 @@ impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::Tim
     // --------------------------- direct stack usage ----------------------------------------------
     /// Returns a received J1939 Frame
     /// Frames longer than 8 Bytes are already assembled
-    /// By default only broadcast messages are received, to receive additonal message the source address must be set using [set_accepted_sa]
+    /// By default only broadcast messages are received, to receive additonal message the source address must be set using set_accepted_sa
     pub fn get_frame(&mut self) -> Option<Frame> {
         self.received_frames.pop()
     }
@@ -116,7 +116,7 @@ impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::Tim
         }
     }
     /// Set list of accepted Source Addresses from which messages should be received
-    /// This has no effect on Control Functions, but only the usage of [get_frame]
+    /// This has no effect on Control Functions, but only the usage of get_frame
     pub fn set_accepted_sa(&mut self, sa_list: Vec<u8>) {
         self.listen_sa = sa_list;
     }

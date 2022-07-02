@@ -83,7 +83,7 @@ impl Header {
 
 impl From<u32> for Header {
     fn from(id: u32) -> Self {
-        let (pgn, da) = if ((id >> 16) & 0xFF) > 240 {
+        let (pgn, da) = if ((id >> 16) & 0xFF) >= 240 {
             // broadcast
             (PGN(id >> 8 & 0x3FFFF), None)
         } else {

@@ -27,7 +27,7 @@ pub struct ControlFunction<TimeDriver: crate::time::TimerDriver> {
 }
 
 impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
-    pub (crate) fn new(name: Name, prefered_address: u8, time: TimeDriver) -> Self {
+    pub(crate) fn new(name: Name, prefered_address: u8, time: TimeDriver) -> Self {
         Self {
             name,
             send_queue: ArrayQueue::new(20),

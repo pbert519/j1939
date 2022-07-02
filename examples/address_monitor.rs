@@ -1,4 +1,8 @@
-use j1939::{self, name::*, time::Instant};
+use j1939::{
+    self,
+    frame::{Request, PGN_ADDRESSCLAIM},
+    time::Instant,
+};
 
 #[derive(Clone)]
 pub struct StdTimer(std::time::Instant);
@@ -22,26 +26,18 @@ fn main() {
     socket.set_nonblocking(true).unwrap();
     let mut stack = j1939::stack::Stack::new(socket, StdTimer::new());
 
-    let name = Name {
-        address_capable: true,
-        industry_group: IndustryGroup::OnHighway.into(),
-        vehicle_system_instance: 0,
-        vehicle_system: VehicleSystem1OnHighway::Trailer.into(),
-        function: Functions::AxleDrive8.into(),
-        function_instance: 2,
-        ecu_instance: 0,
-        manufacturer_coder: 0,
-        identity_number: 0x12345,
-    };
-
-    let cf = stack.register_control_function(0x80, name);
-
+    let mut counter = 0;
     loop {
         stack.process();
-        while let Some(msg) = stack.control_function(&cf).get_frame() {
-            println!("{:?}", msg);
-        }
-
         std::thread::sleep(std::time::Duration::from_millis(10));
+        counter += 1;
+        // run every 1s
+        if counter > 100 {
+            counter = 0;
+            println!("{:#?}", stack.control_function_list());
+            // Send a Address Request to update the address list
+            let req = Request::new(PGN_ADDRESSCLAIM, 0xFE, 0xFF);
+            stack.send_frame(req.into());
+        }
     }
 }

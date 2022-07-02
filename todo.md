@@ -5,10 +5,11 @@
 - Logging support
 - Better error handling
 - Timings and Timeouts may be not standard conform or missing
+- Print PGN as string in header? Print frame as recognized frame? Print Name with enums?
+    - PGNs as enum? -> not extensible is the problem. same with frame?
 
 ## Examples
-- pgn server/user
-- address monitor
+- pgn server
 - other OS / Baremetal than linux
 
 ## Control Function
