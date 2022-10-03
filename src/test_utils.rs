@@ -3,7 +3,6 @@ pub mod can_driver {
 
     use super::frame::TestFrame;
     use alloc::{collections::VecDeque, sync::Arc};
-    use nb;
 
     #[derive(Debug)]
     pub struct TestDriverError {}
@@ -42,28 +41,23 @@ pub mod can_driver {
         }
     }
 
-    impl embedded_can::nb::Can for TestDriver {
+    impl embedded_can::blocking::Can for TestDriver {
         type Frame = crate::test_utils::frame::TestFrame;
 
         type Error = TestDriverError;
 
- 
-        fn transmit(
-            &mut self,
-            frame: &Self::Frame,
-        ) -> nb::Result<Option<Self::Frame>, Self::Error> {
+        fn transmit(&mut self, frame: &Self::Frame) -> Result<(), Self::Error> {
             self.output.lock().unwrap().push_back(frame.clone());
-            Ok(None)
+            Ok(())
         }
 
-        fn receive(&mut self) -> nb::Result<Self::Frame, Self::Error> {
+        fn receive(&mut self) -> Result<Self::Frame, Self::Error> {
             if let Some(frame) = self.input.lock().unwrap().pop_front() {
                 Ok(frame)
             } else {
-                Err(nb::Error::WouldBlock)
+                Err(TestDriverError {})
             }
         }
-        
     }
 }
 

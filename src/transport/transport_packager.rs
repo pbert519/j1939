@@ -47,7 +47,7 @@ impl TransportPackager {
         }
     }
 
-    pub fn process_tpcm<CanDriver: embedded_can::nb::Can>(
+    pub fn process_tpcm<CanDriver: embedded_can::blocking::Can>(
         &mut self,
         tpcm: TPCM,
         can_driver: &mut CanDriver,
@@ -156,7 +156,7 @@ impl TransportPackager {
         }
     }
 
-    pub fn process_tpdt<CanDriver: embedded_can::nb::Can>(
+    pub fn process_tpdt<CanDriver: embedded_can::blocking::Can>(
         &mut self,
         tpdt: TPDT,
         can_driver: &mut CanDriver,
@@ -267,7 +267,7 @@ impl TransportPackager {
         result
     }
 
-    pub fn new_out_transfer<CanDriver: embedded_can::nb::Can>(
+    pub fn new_out_transfer<CanDriver: embedded_can::blocking::Can>(
         &mut self,
         pdu: Frame,
         can_driver: &mut CanDriver,
@@ -318,7 +318,7 @@ impl TransportPackager {
         }
     }
 
-    pub fn process_out_transfers<CanDriver: embedded_can::nb::Can>(
+    pub fn process_out_transfers<CanDriver: embedded_can::blocking::Can>(
         &mut self,
         can_driver: &mut CanDriver,
     ) {

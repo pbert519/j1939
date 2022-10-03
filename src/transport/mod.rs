@@ -16,7 +16,7 @@ impl TransportManager {
         }
     }
 
-    pub fn handle_frame<CanDriver: embedded_can::nb::Can>(
+    pub fn handle_frame<CanDriver: embedded_can::blocking::Can>(
         &mut self,
         header: Header,
         data: &[u8],
@@ -39,11 +39,11 @@ impl TransportManager {
         result
     }
 
-    pub fn process<CanDriver: embedded_can::nb::Can>(&mut self, can_driver: &mut CanDriver) {
+    pub fn process<CanDriver: embedded_can::blocking::Can>(&mut self, can_driver: &mut CanDriver) {
         self.transport_packager.process_out_transfers(can_driver);
     }
 
-    pub fn send_frame<CanDriver: embedded_can::nb::Can>(
+    pub fn send_frame<CanDriver: embedded_can::blocking::Can>(
         &mut self,
         frame: Frame,
         can_driver: &mut CanDriver,

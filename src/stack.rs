@@ -12,7 +12,7 @@ use crossbeam_queue::ArrayQueue;
 /// get and setter for frames and source address based filtering is implemented.
 /// It is possible to register a ControlFunction, which handles AddressManagement and provides a pgn based filter utility
 /// The stacks process() functions must be called on a regulary basis to perform internal long running tasks
-pub struct Stack<CanDriver: embedded_can::nb::Can, TimeDriver: crate::time::TimerDriver> {
+pub struct Stack<CanDriver: embedded_can::blocking::Can, TimeDriver: crate::time::TimerDriver> {
     received_frames: ArrayQueue<Frame>,
     listen_sa: Vec<u8>,
     transport: TransportManager,
@@ -22,7 +22,7 @@ pub struct Stack<CanDriver: embedded_can::nb::Can, TimeDriver: crate::time::Time
     time: TimeDriver,
 }
 
-impl<CanDriver: embedded_can::nb::Can, TimeDriver: Clone + crate::time::TimerDriver>
+impl<CanDriver: embedded_can::blocking::Can, TimeDriver: Clone + crate::time::TimerDriver>
     Stack<CanDriver, TimeDriver>
 {
     /// Creates a new Stack object, capturing the can and timer driver

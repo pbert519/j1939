@@ -2,7 +2,7 @@
 #![warn(missing_docs)]
 
 //! A J1939 Stack
-//! Uses a [embedded_can::nb::Can] can driver
+//! Uses a [embedded_can::blocking::Can] can driver
 
 extern crate alloc;
 
