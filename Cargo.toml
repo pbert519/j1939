@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 embedded-can = { git = "https://github.com/rust-embedded/embedded-hal.git", branch = "master" }
-crossbeam-queue = { version = "0.3", features = ["alloc"]}
-num_enum = "0.5.7"
+crossbeam-queue = { version = "0.3", default-features = false, features = ["alloc"]}
+num_enum = { version = "0.5.7", default-features = false }
 
 [dev-dependencies]
 candev = { git = "https://github.com/pbert519/candev.git"}
