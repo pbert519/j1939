@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 /// Name of J1939 node, consists of a 64-bit value
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Name {
     /// 1-bit Arbitrary Address Capable
     /// Indicate the capability to solve address conflicts.

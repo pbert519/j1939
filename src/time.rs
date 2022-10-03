@@ -1,5 +1,5 @@
 /// Provides a point of time since start of the application
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 
 /// Instants describes a point in time
 /// The inner type is a strictly monotonic timestamp in milliseconds
