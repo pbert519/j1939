@@ -2,7 +2,7 @@ use crate::frame::{Frame, Header, PGN, PGN_TP_CM, PGN_TP_DT};
 const ADDRESS_GLOBAL: u8 = 0xFF;
 
 // ------------------------------------------------- TP DT ---------------------------------------
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct TPDT {
     pub remote_address: u8,
@@ -36,7 +36,7 @@ impl TPDT {
 
 // ------------------------------------------------- TP CM ---------------------------------------
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TPCM {
     Rts {
         message_size: u16,
@@ -227,7 +227,7 @@ impl TPCM {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AbortReason {
     Reserved = 0,
     AlreadyConnected = 1,

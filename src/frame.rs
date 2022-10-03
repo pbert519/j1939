@@ -39,7 +39,7 @@ pub const PGN_REQUEST: PGN = PGN(0xEA00);
 pub const PGN_ACK: PGN = PGN(0xE800);
 
 /// Header of a decoded J1939 Frame
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Header {
     pgn: PGN,
     priority: u8,
@@ -116,7 +116,7 @@ impl From<Header> for u32 {
 
 /// Decoded J1929 Frame.
 /// If the data length is higher than 8, this frame is disassembled for transport over can
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Frame {
     header: Header,
     data: Vec<u8>,

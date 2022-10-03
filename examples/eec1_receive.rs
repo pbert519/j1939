@@ -1,7 +1,6 @@
 use j1939::{
     self,
     frame::{Frame, PGN},
-    name::*,
     time::Instant,
 };
 
