@@ -3,13 +3,14 @@ pub mod can_driver {
 
     use super::frame::TestFrame;
     use alloc::{collections::VecDeque, sync::Arc};
+    use nb;
 
     #[derive(Debug)]
     pub struct TestDriverError {}
 
-    impl embedded_hal::can::Error for TestDriverError {
-        fn kind(&self) -> embedded_hal::can::ErrorKind {
-            embedded_hal::can::ErrorKind::Other
+    impl embedded_can::Error for TestDriverError {
+        fn kind(&self) -> embedded_can::ErrorKind {
+            embedded_can::ErrorKind::Other
         }
     }
 
@@ -41,65 +42,67 @@ pub mod can_driver {
         }
     }
 
-    impl embedded_hal::can::nb::Can for TestDriver {
+    impl embedded_can::nb::Can for TestDriver {
         type Frame = crate::test_utils::frame::TestFrame;
 
         type Error = TestDriverError;
 
+ 
         fn transmit(
             &mut self,
             frame: &Self::Frame,
-        ) -> embedded_hal::nb::Result<Option<Self::Frame>, Self::Error> {
+        ) -> nb::Result<Option<Self::Frame>, Self::Error> {
             self.output.lock().unwrap().push_back(frame.clone());
             Ok(None)
         }
 
-        fn receive(&mut self) -> embedded_hal::nb::Result<Self::Frame, Self::Error> {
+        fn receive(&mut self) -> nb::Result<Self::Frame, Self::Error> {
             if let Some(frame) = self.input.lock().unwrap().pop_front() {
                 Ok(frame)
             } else {
-                Err(embedded_hal::nb::Error::WouldBlock)
+                Err(nb::Error::WouldBlock)
             }
         }
+        
     }
 }
 
 pub mod frame {
     use alloc::vec::Vec;
-    use embedded_hal::can::Frame;
+    use embedded_can::Frame;
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct TestFrame {
-        id: embedded_hal::can::Id,
+        id: embedded_can::Id,
         data: Vec<u8>,
     }
 
     impl TestFrame {
         pub fn new2(id: u32, data: &[u8]) -> Self {
             TestFrame::new(
-                embedded_hal::can::Id::Extended(embedded_hal::can::ExtendedId::new(id).unwrap()),
+                embedded_can::Id::Extended(embedded_can::ExtendedId::new(id).unwrap()),
                 data,
             )
             .unwrap()
         }
     }
 
-    impl embedded_hal::can::Frame for TestFrame {
-        fn new(id: impl Into<embedded_hal::can::Id>, data: &[u8]) -> Option<Self> {
+    impl embedded_can::Frame for TestFrame {
+        fn new(id: impl Into<embedded_can::Id>, data: &[u8]) -> Option<Self> {
             Some(TestFrame {
                 id: id.into(),
                 data: Vec::from(data),
             })
         }
 
-        fn new_remote(_id: impl Into<embedded_hal::can::Id>, _dlc: usize) -> Option<Self> {
+        fn new_remote(_id: impl Into<embedded_can::Id>, _dlc: usize) -> Option<Self> {
             None
         }
 
         fn is_extended(&self) -> bool {
             match self.id {
-                embedded_hal::can::Id::Standard(_) => false,
-                embedded_hal::can::Id::Extended(_) => true,
+                embedded_can::Id::Standard(_) => false,
+                embedded_can::Id::Extended(_) => true,
             }
         }
 
@@ -107,7 +110,7 @@ pub mod frame {
             false
         }
 
-        fn id(&self) -> embedded_hal::can::Id {
+        fn id(&self) -> embedded_can::Id {
             self.id
         }
 

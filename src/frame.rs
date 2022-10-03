@@ -140,9 +140,9 @@ impl Frame {
         &self.data
     }
 
-    pub(crate) fn can<CanFrame: embedded_hal::can::Frame>(self) -> CanFrame {
+    pub(crate) fn can<CanFrame: embedded_can::Frame>(self) -> CanFrame {
         let id: u32 = (*self.header()).into();
-        CanFrame::new(embedded_hal::can::ExtendedId::new(id).unwrap(), self.data()).unwrap()
+        CanFrame::new(embedded_can::ExtendedId::new(id).unwrap(), self.data()).unwrap()
     }
 }
 

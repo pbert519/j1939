@@ -12,7 +12,7 @@ use crossbeam_queue::ArrayQueue;
 /// get and setter for frames and source address based filtering is implemented.
 /// It is possible to register a ControlFunction, which handles AddressManagement and provides a pgn based filter utility
 /// The stacks process() functions must be called on a regulary basis to perform internal long running tasks
-pub struct Stack<CanDriver: embedded_hal::can::nb::Can, TimeDriver: crate::time::TimerDriver> {
+pub struct Stack<CanDriver: embedded_can::nb::Can, TimeDriver: crate::time::TimerDriver> {
     received_frames: ArrayQueue<Frame>,
     listen_sa: Vec<u8>,
     transport: TransportManager,
@@ -22,7 +22,7 @@ pub struct Stack<CanDriver: embedded_hal::can::nb::Can, TimeDriver: crate::time:
     time: TimeDriver,
 }
 
-impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::TimerDriver>
+impl<CanDriver: embedded_can::nb::Can, TimeDriver: Clone + crate::time::TimerDriver>
     Stack<CanDriver, TimeDriver>
 {
     /// Creates a new Stack object, capturing the can and timer driver
@@ -122,8 +122,8 @@ impl<CanDriver: embedded_hal::can::nb::Can, TimeDriver: Clone + crate::time::Tim
     }
 
     // ------------------------private--------------------------------------------------------------
-    fn push_can_frame<CanFrame: embedded_hal::can::Frame>(&mut self, frame: CanFrame) {
-        if let embedded_hal::can::Id::Extended(eid) = frame.id() {
+    fn push_can_frame<CanFrame: embedded_can::Frame>(&mut self, frame: CanFrame) {
+        if let embedded_can::Id::Extended(eid) = frame.id() {
             let header: Header = eid.as_raw().into();
             // 1. check if the frame is addressed to me
             // broadcast or da == 0xFF or address of a registered control function

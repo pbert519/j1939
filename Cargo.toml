@@ -6,9 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-embedded-hal = { git = "https://github.com/rust-embedded/embedded-hal.git", branch = "master" }
+embedded-can = { git = "https://github.com/rust-embedded/embedded-hal.git", branch = "master" }
 crossbeam-queue = "0.3"
 num_enum = "0.5.7"
 
 [dev-dependencies]
 candev = { git = "https://github.com/pbert519/candev.git"}
+nb = "1"
