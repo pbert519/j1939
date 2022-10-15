@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 /// PGN contains a unique id, describing the content of a J1939 frame
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct PGN(pub u32);
 
 impl PGN {

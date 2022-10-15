@@ -71,6 +71,7 @@ impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
     }
 
     pub(crate) fn handle_new_frame(&mut self, frame: &Frame) {
+        // check if the message targets this cf
         if let Some(da) = frame.header().destination_address() {
             if da == 0xFF
                 || (self.address_state == AddressState::AddressClaimed && self.address == da)
