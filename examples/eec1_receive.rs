@@ -23,6 +23,7 @@ impl j1939::time::TimerDriver for StdTimer {
 const PGN_ELECTRONICENGINECONTROLLER: PGN = PGN(0xF004);
 // Deserialized EEC1 Message but the fields have the raw values and the computation method is not applied!
 #[derive(Debug)]
+#[allow(dead_code)]
 struct EEC1 {
     torque_mode: u8,
     additonal_torque: u8,
