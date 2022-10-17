@@ -2,7 +2,7 @@
 #![warn(missing_docs)]
 
 //! A J1939 Stack
-//! Uses a [embedded_can::blocking::Can] can driver
+//! Uses a [`embedded_can::blocking::Can`] can driver
 
 extern crate alloc;
 
@@ -14,7 +14,7 @@ pub mod frame;
 pub mod name;
 /// J1939 Stack
 pub mod stack;
-/// Time utilits for the stack
+/// Time utilities for the stack
 pub mod time;
 
 mod address;

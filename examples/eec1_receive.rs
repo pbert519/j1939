@@ -26,7 +26,7 @@ const PGN_ELECTRONICENGINECONTROLLER: PGN = PGN(0xF004);
 #[allow(dead_code)]
 struct EEC1 {
     torque_mode: u8,
-    additonal_torque: u8,
+    additional_torque: u8,
     driver_demand_torque: u8,
     actual_torque: u8,
     engine_speed: u16,
@@ -38,7 +38,7 @@ impl From<Frame> for EEC1 {
     fn from(frame: Frame) -> Self {
         Self {
             torque_mode: frame.data()[0] & 0xF,
-            additonal_torque: (frame.data()[0] >> 4) & 0xF,
+            additional_torque: (frame.data()[0] >> 4) & 0xF,
             driver_demand_torque: frame.data()[1],
             actual_torque: frame.data()[2],
             engine_speed: u16::from_le_bytes([frame.data()[3], frame.data()[4]]),
@@ -50,7 +50,7 @@ impl From<Frame> for EEC1 {
 }
 
 fn main() {
-    // create a socket and set to nonblocking
+    // create a socket and set to non blocking
     let socket = candev::Socket::new("vcan0").expect("Could not open socketcan interface");
     socket.set_nonblocking(true).unwrap();
     let mut stack = j1939::stack::Stack::new(socket, StdTimer::new());

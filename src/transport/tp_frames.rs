@@ -25,7 +25,7 @@ impl From<TPDT> for Frame {
 
 impl TPDT {
     pub fn from_frame(header: Header, data: &[u8]) -> Self {
-        TPDT {
+        Self {
             remote_address: header.source_address(),
             local_address: header.destination_address().unwrap(),
             sequence_number: data[0],
@@ -237,12 +237,12 @@ pub enum AbortReason {
     RetransmitLimit = 5,
     UnexpectedTransfer = 6,
     BadSequenceNumber = 7,
-    DuplicateSequenceNumer = 8,
+    DuplicateSequenceNumber = 8,
     MessageSizeToHigh = 9,
     Other = 250,
 }
 
-fn from_u8(n: u8) -> AbortReason {
+const fn from_u8(n: u8) -> AbortReason {
     match n {
         0 => AbortReason::Reserved,
         1 => AbortReason::AlreadyConnected,
@@ -252,7 +252,7 @@ fn from_u8(n: u8) -> AbortReason {
         5 => AbortReason::RetransmitLimit,
         6 => AbortReason::UnexpectedTransfer,
         7 => AbortReason::BadSequenceNumber,
-        8 => AbortReason::DuplicateSequenceNumer,
+        8 => AbortReason::DuplicateSequenceNumber,
         9 => AbortReason::MessageSizeToHigh,
         250 => AbortReason::Other,
         _ => AbortReason::Other,

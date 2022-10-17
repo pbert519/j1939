@@ -22,7 +22,7 @@ struct Transmitter {
 
 impl FastPacketCoder {
     pub fn new(pgns: &[PGN]) -> Self {
-        FastPacketCoder {
+        Self {
             pgns: pgns.to_vec(),
             receiver: BTreeMap::new(),
             transmitter: BTreeMap::new(),
@@ -30,8 +30,8 @@ impl FastPacketCoder {
         }
     }
 
-    pub fn is_fastpacket(&self, pgn: &PGN) -> bool {
-        self.pgns.contains(pgn)
+    pub fn is_fastpacket(&self, pgn: PGN) -> bool {
+        self.pgns.contains(&pgn)
     }
 
     pub fn handle_frame(&mut self, header: Header, data: &[u8]) -> Option<Frame> {
@@ -91,7 +91,7 @@ impl FastPacketCoder {
             let mut data = [0xFF; 8];
             data[0] = transmitter.sequence << 5 | (transmitter.item & 0x1F);
 
-            data[1..1 + bytes_to_copy]
+            data[1..=bytes_to_copy]
                 .copy_from_slice(&transmitter.frame.data()[bytes_send_min..bytes_send_max]);
             let id = embedded_can::ExtendedId::new((*transmitter.frame.header()).into()).unwrap();
             can_driver
@@ -121,7 +121,7 @@ impl FastPacketCoder {
         let item = 0;
         let bytes = pdu.data().len();
 
-        // ignore packet if pgn is alredy send
+        // ignore packet if pgn is already send
         if let alloc::collections::btree_map::Entry::Vacant(e) =
             self.transmitter.entry(pdu.header().pgn())
         {

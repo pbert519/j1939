@@ -118,7 +118,7 @@ pub mod frame {
     }
 }
 
-pub mod testtime {
+pub mod test_time {
     use std::sync::Mutex;
 
     use alloc::sync::Arc;

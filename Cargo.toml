@@ -2,6 +2,11 @@
 name = "j1939"
 version = "0.1.0"
 edition = "2021"
+description = "A J1939 stack written in rust"
+repository = "https://github.com/pbert519/j1939"
+license = "MIT"
+keywords = ["j1939", "nema2000"]
+categories = ["embedded", "no-std"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

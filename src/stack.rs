@@ -10,8 +10,8 @@ use crossbeam_queue::ArrayQueue;
 /// Represents a single J1939 stack
 /// The stack itself manages transport protocols
 /// get and setter for frames and source address based filtering is implemented.
-/// It is possible to register a ControlFunction, which handles AddressManagement and provides a pgn based filter utility
-/// The stacks process() functions must be called on a regulary basis to perform internal long running tasks
+/// It is possible to register a `ControlFunction`, which handles address management and provides a pgn based filter utility
+/// The stacks process() functions must be called on a regular basis to perform internal long running tasks
 pub struct Stack<CanDriver: embedded_can::blocking::Can, TimeDriver: crate::time::TimerDriver> {
     received_frames: ArrayQueue<Frame>,
     accept_all_da: bool,
@@ -73,8 +73,8 @@ impl<CanDriver: embedded_can::blocking::Can, TimeDriver: Clone + crate::time::Ti
     }
 
     // ---------------------- control functions ----------------------------------------------------
-    /// Creates a new [ControlFunction] with a preferred address and Name
-    /// The functions returns a [ControlFunctionHandle] which can be used to access the created ControlFunction
+    /// Creates a new [`ControlFunction`] with a preferred address and Name
+    /// The functions returns a [`ControlFunctionHandle`] which can be used to access the created `ControlFunction`
     pub fn register_control_function(
         &mut self,
         preferred_address: u8,
@@ -87,8 +87,8 @@ impl<CanDriver: embedded_can::blocking::Can, TimeDriver: Clone + crate::time::Ti
         ));
         ControlFunctionHandle(self.cf.len() - 1)
     }
-    /// Returns a mutable reference of a [ControlFunction].
-    /// ControlsFunctions are identified by a [ControlFunctionHandle]
+    /// Returns a mutable reference of a [`ControlFunction`].
+    /// `ControlsFunctions` are identified by a [`ControlFunctionHandle`]
     pub fn control_function(
         &mut self,
         handle: &ControlFunctionHandle,
@@ -101,7 +101,6 @@ impl<CanDriver: embedded_can::blocking::Can, TimeDriver: Clone + crate::time::Ti
             // check cf address management for ongoing transactions
             self.cf[cf_index].process(&self.address_monitor);
             // check cf send queues and move them into stack queue
-            // ToDo loopback all frames for interested parties, but not the sender?
             while let Some(frame) = self.cf[cf_index].send_queue.pop() {
                 self.send_frame(frame.clone());
                 for receiver_index in 0..self.cf.len() {
@@ -109,7 +108,7 @@ impl<CanDriver: embedded_can::blocking::Can, TimeDriver: Clone + crate::time::Ti
                     if cf_index == receiver_index {
                         continue;
                     }
-                    self.cf[cf_index].handle_new_frame(&frame);
+                    self.cf[receiver_index].handle_new_frame(&frame);
                 }
                 self.handle_new_frame_stack(frame);
             }
@@ -119,17 +118,17 @@ impl<CanDriver: embedded_can::blocking::Can, TimeDriver: Clone + crate::time::Ti
     // --------------------------- direct stack usage ----------------------------------------------
     /// Returns a received J1939 Frame
     /// Frames longer than 8 Bytes are already assembled
-    /// By default only broadcast messages are received, to receive additonal message the source address must be set using set_accepted_sa
+    /// By default only broadcast messages are received, to receive additional message the source address must be set using `set_accepted_sa`
     pub fn get_frame(&mut self) -> Option<Frame> {
         self.received_frames.pop()
     }
     /// Send a J1939 Frame
-    /// Control functions are strongly prefered to send frames
+    /// Control functions are strongly preferred to send frames
     /// Frames longer than 8 bytes are send by a transport protocol
     /// Frames are not loop backed to control functions!
     pub fn send_frame(&mut self, frame: Frame) {
         if frame.data().len() > 8 {
-            self.transport.send_frame(frame, &mut self.can_driver)
+            self.transport.send_frame(frame, &mut self.can_driver);
         } else {
             self.can_driver
                 .transmit(&frame.can())
@@ -161,7 +160,7 @@ impl<CanDriver: embedded_can::blocking::Can, TimeDriver: Clone + crate::time::Ti
                     self.transport
                         .handle_frame(header, frame.data(), &mut self.can_driver)
                 {
-                    self.handle_new_frame(decoded_frame)
+                    self.handle_new_frame(decoded_frame);
                 }
             // just a normal message
             } else {
@@ -173,7 +172,7 @@ impl<CanDriver: embedded_can::blocking::Can, TimeDriver: Clone + crate::time::Ti
 
     /// got a new j1939 frame decoded from can frames
     fn handle_new_frame(&mut self, frame: Frame) {
-        // check if the new frame should be handley by the cf
+        // check if the new frame should be handled by the cf
         for cf in &mut self.cf {
             cf.handle_new_frame(&frame);
         }
@@ -214,7 +213,7 @@ mod tests {
     use crate::frame::Frame;
     use crate::test_utils::can_driver::TestDriver;
     use crate::test_utils::frame::TestFrame;
-    use crate::test_utils::testtime::TestTimer;
+    use crate::test_utils::test_time::TestTimer;
 
     mod address {
         use super::*;
@@ -331,7 +330,7 @@ mod tests {
             // ToDo monitor bus if the name claims a different SA?
         }
         /// Try to claim a address with a configurable address
-        /// No response to the addressclaim request, addressclaim is successfull
+        /// No response to the addressclaim request, addressclaim is successful
         #[test]
         fn control_function_address_claim() {
             let mut timer = TestTimer::new();
