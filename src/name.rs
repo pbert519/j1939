@@ -20,7 +20,7 @@ pub struct Name {
     /// The first instance is assigned to the instance number 0.
     pub vehicle_system_instance: u8,
     /// 7-bit Vehicle System
-    /// A subcomponent of a vehicle, that includes one or more J1939
+    /// A sub component of a vehicle, that includes one or more J1939
     /// segments and may be connected or disconnected from the vehicle.
     /// A Vehicle System may be made of one or more functions. The Vehicle
     /// System depends on the Industry Group definition.
@@ -67,7 +67,7 @@ impl Name {
 
 impl From<u64> for Name {
     fn from(item: u64) -> Self {
-        Name {
+        Self {
             address_capable: (item >> 63) & 0x01 > 0,
             industry_group: (((item >> 60) & 0x07) as u8),
             vehicle_system_instance: ((item >> 56) & 0x0F) as u8,
@@ -130,7 +130,7 @@ pub enum VehicleSystem4Marine {
     NotAvailable = 127,
     SystemTools = 10,
     SafetySystems = 20,
-    InterIntranetworkDevice = 25,
+    InterIntraNetworkDevice = 25,
     ElectricalDistribution = 30,
     SteeringAndControlSurfaces = 40,
     Propulsion = 50,

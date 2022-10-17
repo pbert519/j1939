@@ -13,8 +13,8 @@ pub(crate) enum AddressState {
     CannotClaim,
 }
 
-/// ControlFunction is a entitiy with an own address on a J1939 bus
-/// Each ControlFunction particapte in the J1939 address management
+/// `ControlFunction` is a entity with an own address on a J1939 bus
+/// Each `ControlFunction` participate in the J1939 address management
 /// Send and receive frames with a address
 pub struct ControlFunction<TimeDriver: crate::time::TimerDriver> {
     name: Name,
@@ -27,18 +27,18 @@ pub struct ControlFunction<TimeDriver: crate::time::TimerDriver> {
 }
 
 impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
-    pub(crate) fn new(name: Name, prefered_address: u8, time: TimeDriver) -> Self {
+    pub(crate) fn new(name: Name, preferred_address: u8, time: TimeDriver) -> Self {
         Self {
             name,
             send_queue: ArrayQueue::new(20),
             receive_queue: ArrayQueue::new(20),
             address_state: AddressState::Preferred,
-            address: prefered_address,
+            address: preferred_address,
             address_configurable: name.address_capable,
             time,
         }
     }
-    /// If the control function has is onlne and has a vaild address Some(address) is returned
+    /// If the control function has is online and has a valid address Some(address) is returned
     pub fn is_online(&self) -> Option<u8> {
         if self.address_state == AddressState::AddressClaimed {
             Some(self.address)
@@ -48,11 +48,11 @@ impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
     }
     /// Send a frame using this control function
     /// The source address in the frame is overwritten by the address of the local bus
-    /// Returns false if the ControlFunction has not a valid address
+    /// Returns false if the `ControlFunction` has not a valid address
     /// The frame is send as soon as stack.process() is called.
-    pub fn send_frame(&mut self, frame: Frame) -> bool {
+    pub fn send_frame(&mut self, mut frame: Frame) -> bool {
         if self.address_state == AddressState::AddressClaimed {
-            // ToDo overwrite source address
+            frame.header.source_address = self.address;
             self.send_queue.force_push(frame);
             true
         } else {
@@ -162,7 +162,8 @@ impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
         if matches!(
             self.address_state,
             AddressState::AddressClaimed | AddressState::WaitForVeto(_)
-        ) {
+        ) && frame.header().source_address() == self.address
+        {
             match name_raw.cmp(&self.name.into()) {
                 core::cmp::Ordering::Less => {
                     // we lose the address

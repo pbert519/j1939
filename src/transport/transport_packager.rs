@@ -3,7 +3,7 @@ use crate::transport::tp_frames::*;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-struct BroadcastReceier {
+struct BroadcastReceiver {
     pub data: Vec<u8>,
     pub pgn: PGN,
     pub priority: u8,
@@ -15,7 +15,7 @@ struct BroadcastSender {
     pub packet_count: u8,
 }
 
-struct P2PReceier {
+struct P2PReceiver {
     pub data: Vec<u8>,
     pub pgn: PGN,
     pub priority: u8,
@@ -31,15 +31,15 @@ struct P2PSender {
 }
 
 pub struct TransportPackager {
-    in_broadcast: BTreeMap<u8, BroadcastReceier>,
+    in_broadcast: BTreeMap<u8, BroadcastReceiver>,
     out_broadcast: Option<BroadcastSender>,
-    in_p2p: BTreeMap<(u8, u8), P2PReceier>,
+    in_p2p: BTreeMap<(u8, u8), P2PReceiver>,
     out_p2p: BTreeMap<(u8, u8), P2PSender>,
 }
 
 impl TransportPackager {
     pub fn new() -> Self {
-        TransportPackager {
+        Self {
             in_broadcast: BTreeMap::new(),
             out_broadcast: None,
             in_p2p: BTreeMap::new(),
@@ -64,7 +64,7 @@ impl TransportPackager {
                 if let alloc::collections::btree_map::Entry::Vacant(e) =
                     self.in_p2p.entry((remote_address, local_address))
                 {
-                    e.insert(P2PReceier {
+                    e.insert(P2PReceiver {
                         data: Vec::with_capacity(message_size as usize),
                         pgn,
                         priority: 0,
@@ -125,7 +125,7 @@ impl TransportPackager {
                 remote_address,
                 local_address,
             } => {
-                // ToDo reciver or sender abort -> check pgn?
+                // ToDo receiver or sender abort -> check pgn?
                 if let Some(transfer) = self.in_p2p.get(&(local_address, remote_address)) {
                     if transfer.pgn == pgn {
                         self.in_p2p.remove(&(local_address, remote_address));
@@ -146,7 +146,7 @@ impl TransportPackager {
             } => {
                 self.in_broadcast
                     .entry(remote_address)
-                    .or_insert(BroadcastReceier {
+                    .or_insert(BroadcastReceiver {
                         data: Vec::with_capacity(message_size as usize),
                         pgn,
                         priority: 0,
@@ -170,7 +170,7 @@ impl TransportPackager {
                     if missing_bytes <= 8 {
                         // last packet
                         rec.data.extend_from_slice(&tpdt.data[0..missing_bytes]);
-                        // finialize packet
+                        // finalize packet
                         let entry = self.in_broadcast.remove(&tpdt.remote_address).unwrap();
                         result = Some(Frame::new(
                             Header::new(
@@ -182,7 +182,7 @@ impl TransportPackager {
                             &entry.data,
                         ));
                     } else {
-                        rec.data.extend_from_slice(&tpdt.data)
+                        rec.data.extend_from_slice(&tpdt.data);
                     }
                 } else {
                     self.in_broadcast.remove(&tpdt.remote_address);
@@ -198,7 +198,7 @@ impl TransportPackager {
                 if missing_bytes <= 8 {
                     // last packet
                     rec.data.extend_from_slice(&tpdt.data[0..missing_bytes]);
-                    // finialize packet
+                    // finalize packet
                     let entry = self
                         .in_p2p
                         .remove(&(tpdt.remote_address, tpdt.local_address))
@@ -256,7 +256,7 @@ impl TransportPackager {
             // Abort unexpected transfer
             let abort = TPCM::Abort {
                 abort_reason: AbortReason::UnexpectedTransfer,
-                pgn: PGN::new(0xFFFFFFFF), // PGN is not known
+                pgn: PGN::new(0xFFFF_FFFF), // PGN is not known
                 remote_address: tpdt.remote_address,
                 local_address: tpdt.local_address,
             };

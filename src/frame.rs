@@ -7,15 +7,15 @@ pub struct PGN(pub u32);
 impl PGN {
     /// Creates a new PGN from a u32 number
     /// Attention: Currently no checks are in place if this PGN is valid
-    pub fn new(pgn: u32) -> Self {
+    pub const fn new(pgn: u32) -> Self {
         Self(pgn)
     }
     /// Get a PGN as u32
-    pub fn raw(&self) -> u32 {
+    pub const fn raw(&self) -> u32 {
         self.0
     }
-    /// Checks if the pgn is a broadcast pgn as definied by the j1939 standard
-    pub fn is_broadcast(&self) -> bool {
+    /// Checks if the pgn is a broadcast pgn as defined by the j1939 standard
+    pub const fn is_broadcast(&self) -> bool {
         ((self.0 >> 8) & 0xFF) > 240
     }
 }
@@ -41,16 +41,16 @@ pub const PGN_ACK: PGN = PGN(0xE800);
 /// Header of a decoded J1939 Frame
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Header {
-    pgn: PGN,
-    priority: u8,
-    source_address: u8,
-    destination_address: Option<u8>,
+    pub(crate) pgn: PGN,
+    pub(crate) priority: u8,
+    pub(crate) source_address: u8,
+    pub(crate) destination_address: Option<u8>,
 }
 
 impl Header {
     /// Creates a new header
     /// destination address must only be None if the PGN is a broadcast pgn
-    pub fn new(
+    pub const fn new(
         pgn: PGN,
         priority: u8,
         source_address: u8,
@@ -63,20 +63,20 @@ impl Header {
             destination_address,
         }
     }
-    /// Returs the PGN
-    pub fn pgn(&self) -> PGN {
+    /// Returns the PGN
+    pub const fn pgn(&self) -> PGN {
         self.pgn
     }
     /// Returns the priority
-    pub fn priority(&self) -> u8 {
+    pub const fn priority(&self) -> u8 {
         self.priority
     }
     /// Returns the source address
-    pub fn source_address(&self) -> u8 {
+    pub const fn source_address(&self) -> u8 {
         self.source_address
     }
-    /// Returns the destinaation address
-    pub fn destination_address(&self) -> Option<u8> {
+    /// Returns the destination address
+    pub const fn destination_address(&self) -> Option<u8> {
         self.destination_address
     }
 }
@@ -118,7 +118,7 @@ impl From<Header> for u32 {
 /// If the data length is higher than 8, this frame is disassembled for transport over can
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Frame {
-    header: Header,
+    pub(crate) header: Header,
     data: Vec<u8>,
 }
 
@@ -126,13 +126,13 @@ impl Frame {
     /// Creates a new Frame with given Header and data
     /// The data is copied
     pub fn new(header: Header, data: &[u8]) -> Self {
-        Frame {
+        Self {
             header,
             data: data.to_vec(),
         }
     }
     /// Returns frame header
-    pub fn header(&self) -> &Header {
+    pub const fn header(&self) -> &Header {
         &self.header
     }
     /// Returns a view of the frame data
@@ -146,7 +146,8 @@ impl Frame {
     }
 }
 
-/// A J1939 Frame specalized to request a specific PGN to be send on the bus
+/// A J1939 Frame specialized to request a specific PGN to be send on the bus
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Request {
     header: Header,
     pgn: PGN,
@@ -157,7 +158,7 @@ impl Request {
     /// pgn is the requested PGN
     /// destination address can either a control function which provides the pgn or 0xFF address all ECUs
     /// source address should be the valid local address of a control function
-    pub fn new(pgn: PGN, source_address: u8, destination_address: u8) -> Self {
+    pub const fn new(pgn: PGN, source_address: u8, destination_address: u8) -> Self {
         let header = Header {
             pgn: PGN_REQUEST,
             priority: 3,
@@ -167,11 +168,11 @@ impl Request {
         Self { header, pgn }
     }
     /// Returns the [Header]
-    pub fn header(&self) -> &Header {
+    pub const fn header(&self) -> &Header {
         &self.header
     }
     /// Returns the requested PGN by this Request Frame
-    pub fn pgn(&self) -> &PGN {
+    pub const fn pgn(&self) -> &PGN {
         &self.pgn
     }
 }
@@ -192,11 +193,144 @@ impl TryFrom<Frame> for Request {
 }
 
 impl From<Request> for Frame {
-    fn from(req: Request) -> Frame {
+    fn from(req: Request) -> Self {
         let bytes: [u8; 4] = req.pgn().raw().to_le_bytes();
-        Frame {
+        Self {
             header: req.header,
             data: Vec::from(&bytes[0..3]),
+        }
+    }
+}
+
+/// Acknowledgement as response for a request
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Ack {
+    header: Header,
+    ack_type: AckType,
+    group_function_value: Option<u8>,
+    address: u8,
+    requested_pgn: PGN,
+}
+
+/// Ack message type
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum AckType {
+    /// Request was successful
+    PositiveAck,
+    /// Request was not successful
+    NegativeAck,
+    /// requester has no access
+    AccessDenied,
+    /// unable to respond to the request
+    CannotRespond,
+    /// Other ack types
+    Other(u8),
+}
+impl From<u8> for AckType {
+    fn from(raw: u8) -> Self {
+        match raw {
+            0 => AckType::PositiveAck,
+            1 => AckType::NegativeAck,
+            2 => AckType::AccessDenied,
+            3 => AckType::CannotRespond,
+            _ => AckType::Other(raw),
+        }
+    }
+}
+impl From<AckType> for u8 {
+    fn from(ack_type: AckType) -> Self {
+        match ack_type {
+            AckType::PositiveAck => 0,
+            AckType::NegativeAck => 1,
+            AckType::AccessDenied => 2,
+            AckType::CannotRespond => 3,
+            AckType::Other(raw) => raw,
+        }
+    }
+}
+impl Ack {
+    /// Creates a new ACK Frame
+    /// pgn is the requested PGN
+    /// destination address can either a control function which provides the pgn or 0xFF address all ECUs
+    /// the destination address will be used in the j1939 header and the address field of the ack message
+    /// source address should be the valid local address of a control function
+    pub const fn new(
+        ack_type: AckType,
+        group_function_value: Option<u8>,
+        pgn: PGN,
+        source_address: u8,
+        destination_address: u8,
+    ) -> Self {
+        let header = Header {
+            pgn: PGN_ACK,
+            priority: 3,
+            source_address,
+            destination_address: Some(destination_address),
+        };
+        Self {
+            header,
+            ack_type,
+            group_function_value,
+            address: destination_address,
+            requested_pgn: pgn,
+        }
+    }
+    /// Returns the [Header]
+    pub const fn header(&self) -> &Header {
+        &self.header
+    }
+    /// Returns the requested PGN by this Request Frame
+    pub const fn pgn(&self) -> &PGN {
+        &self.requested_pgn
+    }
+    /// Returns the type of this Ack message
+    pub const fn ack_type(&self) -> &AckType {
+        &self.ack_type
+    }
+    /// Returns the option group function value
+    pub const fn group_function_value(&self) -> Option<u8> {
+        self.group_function_value
+    }
+    /// Returns the address whose request is answered by this ack
+    pub const fn address(&self) -> u8 {
+        self.address
+    }
+}
+impl TryFrom<Frame> for Ack {
+    type Error = ();
+    fn try_from(frame: Frame) -> Result<Self, Self::Error> {
+        if frame.header.pgn() == PGN_ACK {
+            let mut bytes: [u8; 4] = [0; 4];
+            bytes[0..3].copy_from_slice(&frame.data()[5..8]);
+
+            let group_function_value = if frame.data()[1] == 0xFF {
+                None
+            } else {
+                Some(frame.data()[1])
+            };
+            Ok(Self {
+                header: frame.header,
+                requested_pgn: PGN::new(u32::from_le_bytes(bytes)),
+                ack_type: frame.data()[0].into(),
+                group_function_value,
+                address: frame.data()[4],
+            })
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl From<Ack> for Frame {
+    fn from(ack: Ack) -> Self {
+        let mut bytes = [0xFF; 8];
+        bytes[0] = ack.ack_type.into();
+        bytes[1] = ack.group_function_value().unwrap_or(0xFF);
+        bytes[4] = ack.address;
+        bytes[5..8].copy_from_slice(&ack.pgn().raw().to_le_bytes()[0..3]);
+        Self {
+            header: ack.header,
+            data: Vec::from(bytes),
         }
     }
 }

@@ -25,7 +25,7 @@ impl TransportManager {
             || pgn == PGN_ETP_DT
             || pgn == PGN_TP_CM
             || pgn == PGN_TP_DT
-            || self.fast_packet.is_fastpacket(&pgn)
+            || self.fast_packet.is_fastpacket(pgn)
     }
 
     pub fn handle_frame<CanDriver: embedded_can::blocking::Can>(
@@ -46,10 +46,10 @@ impl TransportManager {
             }
             PGN_ETP_CM => todo!(),
             PGN_ETP_DT => todo!(),
-            _ if self.fast_packet.is_fastpacket(&header.pgn()) => {
-                result = self.fast_packet.handle_frame(header, data)
+            _ if self.fast_packet.is_fastpacket(header.pgn()) => {
+                result = self.fast_packet.handle_frame(header, data);
             }
-            _ => panic!("Invalid PGN handled by Transportmanager"),
+            _ => panic!("Invalid PGN handled by transport manager"),
         }
         result
     }
@@ -64,12 +64,12 @@ impl TransportManager {
         frame: Frame,
         can_driver: &mut CanDriver,
     ) {
-        if self.fast_packet.is_fastpacket(&frame.header().pgn()) {
-            self.fast_packet.send_frame(frame, can_driver)
+        if self.fast_packet.is_fastpacket(frame.header().pgn()) {
+            self.fast_packet.send_frame(frame, can_driver);
         } else if frame.data().len() > 1785 {
             todo!("ETP not yet supported");
         } else {
-            self.transport_packager.new_out_transfer(frame, can_driver)
+            self.transport_packager.new_out_transfer(frame, can_driver);
         }
     }
 }

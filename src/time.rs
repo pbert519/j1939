@@ -9,18 +9,18 @@ pub(crate) struct Duration(u64);
 
 impl Duration {
     /// Create duration from milliseconds
-    pub fn new(ms: u64) -> Self {
+    pub const fn new(ms: u64) -> Self {
         Self(ms)
     }
     /// Check if the given timeout is over
-    pub fn timeout(&self, start: Instant, now: Instant) -> bool {
+    pub const fn timeout(&self, start: Instant, now: Instant) -> bool {
         (now.0 - start.0) > self.0
     }
 }
 
 // ----------------------------
 
-/// Provides the interal time base for the J1939 Stack
+/// Provides the internal time base for the J1939 Stack
 pub trait TimerDriver {
     /// Get current timestamp as Instant
     fn now(&self) -> Instant;
@@ -29,7 +29,7 @@ pub trait TimerDriver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::testtime::TestTimer;
+    use crate::test_utils::test_time::TestTimer;
     #[test]
     fn timer_init() {
         let timer = TestTimer::new();
