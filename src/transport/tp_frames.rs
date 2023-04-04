@@ -37,6 +37,7 @@ impl TPDT {
 // ------------------------------------------------- TP CM ---------------------------------------
 
 #[derive(Debug, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum TPCM {
     Rts {
         message_size: u16,
