@@ -3,6 +3,7 @@ use j1939::{
     frame::{Frame, PGN},
     time::Instant,
 };
+use socketcan::{CanSocket, Socket};
 
 #[derive(Clone)]
 pub struct StdTimer(std::time::Instant);
@@ -51,7 +52,7 @@ impl From<Frame> for EEC1 {
 
 fn main() {
     // create a socket and set to non blocking
-    let socket = candev::Socket::new("vcan0").expect("Could not open socketcan interface");
+    let socket = CanSocket::open("vcan0").unwrap();
     socket.set_nonblocking(true).unwrap();
     let mut stack = j1939::stack::Stack::new(socket, StdTimer::new());
 
