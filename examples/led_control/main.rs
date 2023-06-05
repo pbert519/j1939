@@ -5,6 +5,7 @@ mod messages;
 use display::*;
 use ecu::*;
 use j1939::{self, time::Instant};
+use socketcan::{CanSocket, Socket};
 
 #[derive(Clone)]
 pub struct StdTimer(std::time::Instant);
@@ -24,7 +25,7 @@ impl j1939::time::TimerDriver for StdTimer {
 
 fn main() {
     // create a socket and set to non blocking
-    let socket = candev::Socket::new("vcan0").expect("Could not open socketcan interface");
+    let socket = CanSocket::open("vcan0").unwrap();
     socket.set_nonblocking(true).unwrap();
     let mut stack = j1939::stack::Stack::new(socket, StdTimer::new());
 
