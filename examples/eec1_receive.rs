@@ -1,25 +1,8 @@
 use j1939::{
     self,
     frame::{Frame, PGN},
-    time::Instant,
 };
 use socketcan::{CanSocket, Socket};
-
-#[derive(Clone)]
-pub struct StdTimer(std::time::Instant);
-
-impl StdTimer {
-    pub fn new() -> Self {
-        Self(std::time::Instant::now())
-    }
-}
-
-impl j1939::time::TimerDriver for StdTimer {
-    fn now(&self) -> Instant {
-        let duration = self.0.elapsed();
-        Instant(duration.as_millis() as u64)
-    }
-}
 
 const PGN_ELECTRONICENGINECONTROLLER: PGN = PGN(0xF004);
 // Deserialized EEC1 Message but the fields have the raw values and the computation method is not applied!
@@ -54,7 +37,7 @@ fn main() {
     // create a socket and set to non blocking
     let socket = CanSocket::open("vcan0").unwrap();
     socket.set_nonblocking(true).unwrap();
-    let mut stack = j1939::stack::Stack::new(socket, StdTimer::new());
+    let mut stack = j1939::stack::Stack::new(socket, j1939::time::std::StdTimerDriver::new());
 
     loop {
         stack.process();

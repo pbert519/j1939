@@ -119,9 +119,8 @@ pub mod frame {
 }
 
 pub mod test_time {
-    use std::sync::Mutex;
-
     use alloc::sync::Arc;
+    use std::sync::Mutex;
 
     use crate::time::Instant;
 
@@ -145,7 +144,7 @@ pub mod test_time {
 
     impl crate::time::TimerDriver for TestTimer {
         fn now(&self) -> Instant {
-            Instant(*self.time.lock().unwrap())
+            Instant::from_ticks(*self.time.lock().unwrap())
         }
     }
 }

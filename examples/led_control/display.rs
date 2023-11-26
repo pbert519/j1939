@@ -1,11 +1,12 @@
 //! control panel / display simulation
 //! demonstrates the ecu features
 
-use crate::{messages::*, StdTimer};
+use crate::messages::*;
 use j1939::{
     frame::*,
     name::*,
     stack::{ControlFunctionHandle, Stack},
+    time::std::StdTimerDriver,
 };
 use std::time::{Duration, Instant};
 
@@ -26,7 +27,7 @@ enum Step {
 }
 
 impl Display {
-    pub fn new(stack: &mut Stack<impl embedded_can::blocking::Can, StdTimer>) -> Self {
+    pub fn new(stack: &mut Stack<impl embedded_can::blocking::Can, StdTimerDriver>) -> Self {
         let cf_handle = stack.register_control_function(
             0x81,
             Name {
@@ -48,7 +49,7 @@ impl Display {
         }
     }
 
-    pub fn process(&mut self, stack: &mut Stack<impl embedded_can::blocking::Can, StdTimer>) {
+    pub fn process(&mut self, stack: &mut Stack<impl embedded_can::blocking::Can, StdTimerDriver>) {
         let cf = stack.control_function(&self.cf_handle);
         // wait till ecu finished address claiming
         if cf.is_online().is_none() {

@@ -243,7 +243,7 @@ mod tests {
             );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::WaitForVeto(Instant(0))
+                AddressState::WaitForVeto(Instant::from_ticks(0))
             );
             timer.set_time(300);
             stack.process();
@@ -283,7 +283,7 @@ mod tests {
             );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::WaitForVeto(Instant(0))
+                AddressState::WaitForVeto(Instant::from_ticks(0))
             );
             timer.set_time(300);
             stack.process();
@@ -315,7 +315,7 @@ mod tests {
             );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::WaitForVeto(Instant(0))
+                AddressState::WaitForVeto(Instant::from_ticks(0))
             );
             driver.push_can_frame(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 1]));
             stack.process();
@@ -348,14 +348,14 @@ mod tests {
             );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::Requested(Instant(0))
+                AddressState::Requested(Instant::from_ticks(0))
             );
             assert_eq!(driver.get_can_frame(), None);
             timer.set_time(1600);
             stack.process();
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::WaitForVeto(Instant(1600))
+                AddressState::WaitForVeto(Instant::from_ticks(1600))
             );
             timer.set_time(1900);
             stack.process();
@@ -384,14 +384,14 @@ mod tests {
             );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::Requested(Instant(0))
+                AddressState::Requested(Instant::from_ticks(0))
             );
             assert_eq!(driver.get_can_frame(), None);
             timer.set_time(1600);
             stack.process();
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::WaitForVeto(Instant(1600))
+                AddressState::WaitForVeto(Instant::from_ticks(1600))
             );
             assert_eq!(
                 driver.get_can_frame(),
@@ -401,7 +401,7 @@ mod tests {
             stack.process();
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::WaitForVeto(Instant(1600))
+                AddressState::WaitForVeto(Instant::from_ticks(1600))
             );
             assert_eq!(
                 driver.get_can_frame(),
@@ -428,14 +428,14 @@ mod tests {
             );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::Requested(Instant(0))
+                AddressState::Requested(Instant::from_ticks(0))
             );
             assert_eq!(driver.get_can_frame(), None);
             timer.set_time(1600);
             stack.process();
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::WaitForVeto(Instant(1600))
+                AddressState::WaitForVeto(Instant::from_ticks(1600))
             );
             driver.push_can_frame(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 180]));
             stack.process();
@@ -470,7 +470,7 @@ mod tests {
             );
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::Requested(Instant(0))
+                AddressState::Requested(Instant::from_ticks(0))
             );
             assert_eq!(driver.get_can_frame(), None);
             driver.push_can_frame(TestFrame::new2(0x18EEFF85, &[0, 0, 0, 0, 0, 255, 2, 100]));
@@ -478,7 +478,7 @@ mod tests {
             stack.process();
             assert_eq!(
                 *stack.control_function(&handle).address_state(),
-                AddressState::WaitForVeto(Instant(1600))
+                AddressState::WaitForVeto(Instant::from_ticks(1600))
             );
             assert_eq!(
                 driver.get_can_frame(),

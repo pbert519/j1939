@@ -38,7 +38,7 @@ impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
             time,
         }
     }
-    /// If the control function has is online and has a valid address Some(address) is returned
+    /// If the control function is online and has a valid address Some(address) is returned
     pub fn is_online(&self) -> Option<u8> {
         if self.address_state == AddressState::AddressClaimed {
             Some(self.address)
@@ -116,7 +116,7 @@ impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
             }
             AddressState::Requested(requested) => {
                 // ToDo: change 1500 to RTxD?
-                if Duration::new(1500).timeout(requested, self.time.now()) {
+                if Duration::millis(1500) < (self.time.now() - requested) {
                     // check if our preferred address is in the list
                     if address_monitor
                         .control_function_list()
@@ -149,7 +149,7 @@ impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
                 }
             }
             AddressState::WaitForVeto(requested) => {
-                if Duration::new(250).timeout(requested, self.time.now()) {
+                if Duration::millis(250) < (self.time.now() - requested) {
                     self.address_state = AddressState::AddressClaimed;
                 }
             }
