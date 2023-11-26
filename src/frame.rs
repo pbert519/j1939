@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use tinyvec::ArrayVec;
 
 /// PGN contains a unique id, describing the content of a J1939 frame
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
@@ -118,17 +118,19 @@ impl From<Header> for u32 {
 /// If the data length is higher than 8, this frame is disassembled for transport over can
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Frame {
-    pub(crate) header: Header,
-    data: Vec<u8>,
+    header: Header,
+    data: ArrayVec<[u8; 8]>,
 }
 
 impl Frame {
     /// Creates a new Frame with given Header and data
     /// The data is copied
     pub fn new(header: Header, data: &[u8]) -> Self {
+        let mut array = ArrayVec::new();
+        array.extend_from_slice(data);
         Self {
             header,
-            data: data.to_vec(),
+            data: array,
         }
     }
     /// Returns frame header
@@ -138,6 +140,10 @@ impl Frame {
     /// Returns a view of the frame data
     pub fn data(&self) -> &[u8] {
         &self.data
+    }
+
+    pub(crate) fn update_source_address(&mut self, address: u8) {
+        self.header.source_address = address;
     }
 
     pub(crate) fn can<CanFrame: embedded_can::Frame>(self) -> CanFrame {
@@ -195,10 +201,7 @@ impl TryFrom<Frame> for Request {
 impl From<Request> for Frame {
     fn from(req: Request) -> Self {
         let bytes: [u8; 4] = req.pgn().raw().to_le_bytes();
-        Self {
-            header: req.header,
-            data: Vec::from(&bytes[0..3]),
-        }
+        Self::new(req.header, &bytes[0..3])
     }
 }
 
@@ -328,10 +331,7 @@ impl From<Ack> for Frame {
         bytes[1] = ack.group_function_value().unwrap_or(0xFF);
         bytes[4] = ack.address;
         bytes[5..8].copy_from_slice(&ack.pgn().raw().to_le_bytes()[0..3]);
-        Self {
-            header: ack.header,
-            data: Vec::from(bytes),
-        }
+        Self::new(ack.header, &bytes)
     }
 }
 

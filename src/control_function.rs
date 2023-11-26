@@ -52,7 +52,7 @@ impl<TimeDriver: crate::time::TimerDriver> ControlFunction<TimeDriver> {
     /// The frame is send as soon as stack.process() is called.
     pub fn send_frame(&mut self, mut frame: Frame) -> bool {
         if self.address_state == AddressState::AddressClaimed {
-            frame.header.source_address = self.address;
+            frame.update_source_address(self.address);
             self.send_queue.force_push(frame);
             true
         } else {
