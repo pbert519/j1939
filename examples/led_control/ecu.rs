@@ -7,11 +7,12 @@
 //! 2) PGN 0x00EF00 - Peer to peer with group function values - PGN 0x0000 - read and write led parameter
 //! Additional a command message PGN 0x002000 is received by the ecu to enable the led
 //! The messages are defined in the messages.rs file
-use crate::{messages::*, StdTimer};
+use crate::messages::*;
 use j1939::{
     frame::*,
     name::*,
     stack::{ControlFunctionHandle, Stack},
+    time::std::StdTimerDriver,
 };
 use std::time::{Duration, Instant};
 
@@ -25,7 +26,7 @@ pub struct ECU {
 }
 
 impl ECU {
-    pub fn new(stack: &mut Stack<impl embedded_can::blocking::Can, StdTimer>) -> Self {
+    pub fn new(stack: &mut Stack<impl embedded_can::blocking::Can, StdTimerDriver>) -> Self {
         let ecu_name = Name {
             address_capable: true,
             industry_group: IndustryGroup::AgriculturalAndForestry.into(),
@@ -50,7 +51,7 @@ impl ECU {
         }
     }
 
-    pub fn process(&mut self, stack: &mut Stack<impl embedded_can::blocking::Can, StdTimer>) {
+    pub fn process(&mut self, stack: &mut Stack<impl embedded_can::blocking::Can, StdTimerDriver>) {
         let cf = stack.control_function(&self.cf_handle);
         // wait till ecu finished address claiming
         if cf.is_online().is_none() {

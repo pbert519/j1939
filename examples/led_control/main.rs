@@ -4,30 +4,14 @@ mod messages;
 
 use display::*;
 use ecu::*;
-use j1939::{self, time::Instant};
+use j1939::{self, time::std::StdTimerDriver};
 use socketcan::{CanSocket, Socket};
-
-#[derive(Clone)]
-pub struct StdTimer(std::time::Instant);
-
-impl StdTimer {
-    pub fn new() -> Self {
-        Self(std::time::Instant::now())
-    }
-}
-
-impl j1939::time::TimerDriver for StdTimer {
-    fn now(&self) -> Instant {
-        let duration = self.0.elapsed();
-        Instant(duration.as_millis() as u64)
-    }
-}
 
 fn main() {
     // create a socket and set to non blocking
     let socket = CanSocket::open("vcan0").unwrap();
     socket.set_nonblocking(true).unwrap();
-    let mut stack = j1939::stack::Stack::new(socket, StdTimer::new());
+    let mut stack = j1939::stack::Stack::new(socket, StdTimerDriver::new());
 
     let mut display = Display::new(&mut stack);
     let mut ecu = ECU::new(&mut stack);
