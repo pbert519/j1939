@@ -1,4 +1,4 @@
-use tinyvec::ArrayVec;
+use smallvec::SmallVec;
 
 /// PGN contains a unique id, describing the content of a J1939 frame
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
@@ -119,18 +119,16 @@ impl From<Header> for u32 {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Frame {
     header: Header,
-    data: ArrayVec<[u8; 8]>,
+    data: SmallVec<[u8; 8]>,
 }
 
 impl Frame {
     /// Creates a new Frame with given Header and data
     /// The data is copied
     pub fn new(header: Header, data: &[u8]) -> Self {
-        let mut array = ArrayVec::new();
-        array.extend_from_slice(data);
         Self {
             header,
-            data: array,
+            data: SmallVec::from_slice(data),
         }
     }
     /// Returns frame header

@@ -19,7 +19,21 @@ embedded-can = { version = "^0.4" }
 crossbeam-queue = { version = "^0.3", default-features = false, features = ["alloc"]}
 num_enum = { version = "0.7", default-features = false }
 fugit = "0.3.7"
-tinyvec = { version = "1.6.0", features = ["alloc"] }
+smallvec = "^1.11"
 
 [dev-dependencies]
 socketcan = "^3.0.0"
+
+
+[[example]]
+name = "eec1_receive"
+required-features = ["std"]
+
+[[example]]
+name = "address_monitor"
+required-features = ["std"]
+
+[[example]]
+name = "led_control"
+test = true
+required-features = ["std"]
