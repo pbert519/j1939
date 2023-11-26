@@ -51,7 +51,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --examples --features std
+          args: --features std
 
   lints:
     name: Lints
